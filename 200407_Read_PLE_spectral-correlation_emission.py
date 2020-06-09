@@ -162,7 +162,7 @@ plt.plot(calibspec[1],refspec)
 
 #%% Generate binned excitation spectra
 #this generates part of unbinned excitation spectra. It does not resolve for forward and backward scan
-binning = 1/10 #binning is in units of seconds (s)
+binning = 10 #binning is in units of seconds (s)
 expplottime = data[17][-1]*dtmacro
 excitationbegin = data[17][0]*dtmacro
 # binning = 1 #binning is in units of seconds (s)
@@ -401,70 +401,6 @@ else:
             plt.plot(wavelengths,Yfiltered[:,i])
 
 
-#%% #select particular exctiation wavelength based on chosen range emission wavelengths
-
-
-rawdata = data[25]
-originaldata= data[25]
-wavelengthrange = (500,593)
-histogram = 200
-excitationdata = histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram)
-plt.figure()
-plt.imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]])
-plt.gca().invert_yaxis()
-plt.colorbar()
-plt.ylabel('Excitation Wavelength (nm)')
-plt.xlabel('time (s)')
-plt.title('Full excitation spectra')  
-
-#%% #select particular exctiation wavelength based on chosen range emission wavelengths
-emwavelrange = np.array([(605,610),(612,617)])
-emwavindices = np.zeros(emwavelrange.shape)
-for j in range(len(emwavelrange)):
-    emwavindices[j] = (np.argmin(np.abs(wavelengths-emwavelrange[j,0])),np.argmin(np.abs(wavelengths-emwavelrange[j,1])))
-emwavsum = np.zeros((len(Yfiltered[0]),len(emwavelrange)))
-# emwavsum = np.zeros((len(emwavelrange),len(Yfiltered)))
-for l in range(len(Yfiltered[0])):
-    for j in range(len(emwavelrange)):
-        emwavsum[l,j] = np.sum(Yfiltered[int(emwavindices[j,0]):int(emwavindices[j,1]),l])
-
-maxindex = np.zeros(len(Yfiltered[0])) 
-timesmaxindex = np.zeros(emwavsum.shape)
-for j in range(len(Yfiltered[0])):
-    maxindex[j] = np.argmax(emwavsum[j]) #identified maxima in spectra according to 4 states
-
-#%%
-
-# for j in range(len(emwavelrange)):
-idx=0
-photonlist = np.argwhere(maxindex==idx).ravel()
-rawdata = data[25][photonlist]
-lengthdataset= len(photonlist) #used for plotting on scale
-times= data[26][photonlist]*dtmacro
-
-wavelengthrange = (500,593)
-histogram = 200
-excitationdata = histogramexcitationspectra(rawdata,data[25],wavelengthrange,histogram)
-
-plotexcitationdata=np.zeros((histogram,len(data[25]))) #done to match the indexes
-idxs=np.zeros(len(photonlist))
-for j in range(len(photonlist)):
-    idxs[j]=np.argwhere(photonlist==photonlist[j])[0]
-    plotexcitationdata[:,photonlist[j]]=excitationdata[0][:,int(idxs[j])]
-    
-
-plt.figure()
-plt.imshow(plotexcitationdata,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]])
-plt.gca().invert_yaxis()
-plt.colorbar()
-plt.ylabel('Excitation Wavelength (nm)')
-plt.xlabel('time (s)')
-plt.title('Emission based excitation spectra ' + str(emwavelrange[idx][0]) + '- ' +str(emwavelrange[idx][1]) +'nm')  
-#I basically plotted when the emission intensity is higher over certain wavelength regime to take that one over the other one. I do not see where these timeinterevals cross each other at the moment.
-
-
-
-
 
 
 #%% Spectral correlation of noise
@@ -517,8 +453,67 @@ Emissiondata2 = Yfiltered[:,timemin:timemax]
 emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata1,Emissiondata2,wavelengths,wavelengths,taus=taus,plot=plot)
 
 #%% Generate binned excitation spectra for excitation emission correlation
+# #select particular exctiation wavelength based on chosen range emission wavelengths
 
-#each plotted in own time frame
+
+rawdata = data[25]
+originaldata= data[25]
+wavelengthrange = (500,593)
+histogram = 200
+excitationdata = histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram)
+plt.figure()
+plt.imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]])
+plt.gca().invert_yaxis()
+plt.colorbar()
+plt.ylabel('Excitation Wavelength (nm)')
+plt.xlabel('time (s)')
+plt.title('Full excitation spectra')  
+
+#%% #select particular exctiation wavelength based on chosen range emission wavelengths
+emwavelrange = np.array([(605,610),(612,617)])
+emwavindices = np.zeros(emwavelrange.shape)
+for j in range(len(emwavelrange)):
+    emwavindices[j] = (np.argmin(np.abs(wavelengths-emwavelrange[j,0])),np.argmin(np.abs(wavelengths-emwavelrange[j,1])))
+emwavsum = np.zeros((len(Yfiltered[0]),len(emwavelrange)))
+# emwavsum = np.zeros((len(emwavelrange),len(Yfiltered)))
+for l in range(len(Yfiltered[0])):
+    for j in range(len(emwavelrange)):
+        emwavsum[l,j] = np.sum(Yfiltered[int(emwavindices[j,0]):int(emwavindices[j,1]),l])
+
+maxindex = np.zeros(len(Yfiltered[0])) 
+timesmaxindex = np.zeros(emwavsum.shape)
+for j in range(len(Yfiltered[0])):
+    maxindex[j] = np.argmax(emwavsum[j]) #identified maxima in spectra according to 4 states
+
+# for j in range(len(emwavelrange)):
+idx=0
+photonlist = np.argwhere(maxindex==idx).ravel()
+rawdata = data[25][photonlist]
+lengthdataset= len(photonlist) #used for plotting on scale
+times= data[26][photonlist]*dtmacro
+
+wavelengthrange = (500,593)
+histogram = 200
+excitationdata = histogramexcitationspectra(rawdata,data[25],wavelengthrange,histogram)
+
+plotexcitationdata=np.zeros((histogram,len(data[25]))) #done to match the indexes
+idxs=np.zeros(len(photonlist))
+for j in range(len(photonlist)):
+    idxs[j]=np.argwhere(photonlist==photonlist[j])[0]
+    plotexcitationdata[:,photonlist[j]]=excitationdata[0][:,int(idxs[j])]
+    
+
+plt.figure()
+plt.imshow(plotexcitationdata,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]])
+plt.gca().invert_yaxis()
+plt.colorbar()
+plt.ylabel('Excitation Wavelength (nm)')
+plt.xlabel('time (s)')
+plt.title('Emission based excitation spectra ' + str(emwavelrange[idx][0]) + '- ' +str(emwavelrange[idx][1]) +'nm')  
+#I basically plotted when the emission intensity is higher over certain wavelength regime to take that one over the other one. I do not see where these timeinterevals cross each other at the moment.
+
+
+#each plotted in time frame
 if Debugmode==True:
     fig,ax=plt.subplots(2,1,sharex=True,sharey=False) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
     im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)],aspect='auto')
@@ -538,33 +533,11 @@ if Debugmode==True:
     
 #select excitation spectra based on trigger events from first photons in the emission cycle
 #can do excitation emission correlation only on those. Forward and backward sweep combined
-wavelengthrangemin,wavelengthrangemax = 500,593
-wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
-histogrambin=247 
-binnedintensities = np.zeros((histogrambin,len(data[25])))
-binnedwavelengths = np.zeros((histogrambin,len(data[25])))
-
-for i in range(len(data[26])-1):
-    [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*data[19][data[25][i]:data[25][i+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogrambin,range=wavelengthrange)
-    binnedintensities[:,i]=intensitiestemp
-    wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-    binnedwavelengths[:,i]= wavelengthstempavg
-#so right now I have the excitation wavelengths for all emission frames. Now I just need to make a distinction between frames collected where. I think that is the upper for loop
-    
-if Debugmode==True:    
-    plt.figure()
-    plt.imshow(binnedintensities,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrangemax,wavelengthrangemin])
-    plt.gca().invert_yaxis()
-    plt.colorbar()
-    plt.xlabel('Excitation Wavelength (nm)')
-    plt.ylabel('Intensity')
-    plt.title('Emission based excitation spectra')
-    
-
 
 #%% excitation and emission correlation
 # taus=[0,1,2,5,10,30,100]
-taus=[0,1,2,5,10]
+# taus=[1,5,8,10,15]
+taus=[1,10]
 # taus = [5,10,100,400]
 # taus=np.arange(1,40,1)
 # plot = 'cov'
@@ -572,20 +545,21 @@ plot = 'corr'
 # plot = 'none'
 # Emissiondata1 = Yfiltered[:,0:100] #can get postselection by selecting only a particular window. Note that you need emissiondata to plot insteada of Yfiltered
 # Emissiondata2 = binnedintensities[:,0:100]
-emmwavmin = 0
-emmwavmax = 400
-wavelengths[emmwavmin:emmwavmax]
-emissionwavelengths = wavelengths[emmwavmin:emmwavmax]
+emwavelrange=(600,620)
+emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
 
-excwavmin = 140
-excwavmax = 500
-binnedwavelengths[excwavmin:excwavmax,1]
-excitationwavelengths = binnedwavelengths[excwavmin:excwavmax,1]
+emissionwavelengths = wavelengths[emwavelindices[0]:emwavelindices[1]]
 
-limlow = 0
-limhigh = 60
-Excitationdata = binnedintensities[excwavmin:excwavmax,limlow:limhigh]
-Emissiondata = Yfiltered[emmwavmin:emmwavmax,limlow:limhigh]
+
+excwavelrange=(500,592)
+excwavelindices=(np.argmin(np.abs(excitationdata[1]-excwavelrange[0])),np.argmin(np.abs(excitationdata[1]-excwavelrange[1])))
+
+excitationwavelengths = excitationdata[1][excwavelindices[0]:excwavelindices[1],1]
+
+limlow = 700
+limhigh = 800
+Excitationdata = excitationdata[0][excwavelindices[0]:excwavelindices[1],limlow:limhigh]
+Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]
 
 
 # emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Excitationdata,Emissiondata,wavelengths,binnedwavelengths[:,0],taus=taus,plot=plot)
@@ -596,6 +570,22 @@ Emissiondata = Yfiltered[emmwavmin:emmwavmax,limlow:limhigh]
 # emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Excitationdata,Excitationdata,excitationwavelengths,excitationwavelengths,taus=taus,plot=plot)
 emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Emissiondata,emissionwavelengths,emissionwavelengths,taus=taus,plot=plot)
 
+
+#%% correlation of fits of spectra
+fitted=rplm.fitspectra(Emissiondata,emissionwavelengths,0,len(Emissiondata[0]),model='Gauss',Debugmode=False)
+plt.figure()
+plt.plot(fitted[2])
+plt.xlabel('time')
+plt.ylabel('Center wavelength (nm)')
+plt.title('Fitted maxima')
+
+fittedmean = rplm.pearsoncorrelation1D(fitted[2])
+plt.figure()
+plt.scatter(fittedmean[3],fittedmean[0])
+plt.plot(fittedmean[3],np.repeat(-fittedmean[2],len(fittedmean[0])),c='r');plt.plot(fittedmean[3],np.repeat(fittedmean[2],len(fittedmean[0])),c='r');
+plt.xlabel('Delay tau')
+plt.ylabel('Correlation')
+plt.title('Correlation of fitted maxima')
     #%% Robert code for emission excitation plot together
 emisspec = emissionspec
 emisspecold=emisspec[0][0,:,:]
