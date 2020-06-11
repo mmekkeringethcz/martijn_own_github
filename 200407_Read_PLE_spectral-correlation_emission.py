@@ -461,8 +461,12 @@ originaldata= data[25]
 wavelengthrange = (500,593)
 histogram = 200
 excitationdata = histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram)
+
+for j in range(len(excitationdata[0][0])):
+    excitationdata[0][:,j] = excitationdata[0][:,j]-np.mean(excitationdata[0][:,j])
+    
 plt.figure()
-plt.imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]])
+plt.imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]],vmin=0)
 plt.gca().invert_yaxis()
 plt.colorbar()
 plt.ylabel('Excitation Wavelength (nm)')
@@ -470,7 +474,7 @@ plt.xlabel('time (s)')
 plt.title('Full excitation spectra')  
 
 #%% #select particular exctiation wavelength based on chosen range emission wavelengths
-emwavelrange = np.array([(605,610),(612,617)])
+emwavelrange = np.array([(606.5,609.5),(611.5,614.5),(615,618)])
 emwavindices = np.zeros(emwavelrange.shape)
 for j in range(len(emwavelrange)):
     emwavindices[j] = (np.argmin(np.abs(wavelengths-emwavelrange[j,0])),np.argmin(np.abs(wavelengths-emwavelrange[j,1])))
@@ -484,7 +488,7 @@ maxindex = np.zeros(len(Yfiltered[0]))
 timesmaxindex = np.zeros(emwavsum.shape)
 for j in range(len(Yfiltered[0])):
     maxindex[j] = np.argmax(emwavsum[j]) #identified maxima in spectra according to 4 states
-
+#%%
 # for j in range(len(emwavelrange)):
 idx=0
 photonlist = np.argwhere(maxindex==idx).ravel()
@@ -502,9 +506,12 @@ for j in range(len(photonlist)):
     idxs[j]=np.argwhere(photonlist==photonlist[j])[0]
     plotexcitationdata[:,photonlist[j]]=excitationdata[0][:,int(idxs[j])]
     
-
+# for j in range(len(excitationdata[0][0])):
+#     plotexcitationdata[:,j] = plotexcitationdata[:,j]-np.mean(plotexcitationdata[:,j])
+    
+    
 plt.figure()
-plt.imshow(plotexcitationdata,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]])
+plt.imshow(plotexcitationdata,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]],vmin=0)
 plt.gca().invert_yaxis()
 plt.colorbar()
 plt.ylabel('Excitation Wavelength (nm)')
@@ -517,6 +524,7 @@ plt.title('Emission based excitation spectra ' + str(emwavelrange[idx][0]) + '- 
 if Debugmode==True:
     fig,ax=plt.subplots(2,1,sharex=True,sharey=False) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
     im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)],aspect='auto')
+    # im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)])
     ax[0].set_ylabel('Emission wavelength (nm)')
     ax[0].set_xlabel('Time (s)')
     ax[0].set_title('Emission')
@@ -524,6 +532,7 @@ if Debugmode==True:
     ax[0].invert_yaxis()
     fig.colorbar(im0,ax=ax[0])
     im1=ax[1].imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(excitationdata[1]),np.min(excitationdata[1][excitationdata[1]>0])],aspect='auto')
+    # im1=ax[1].imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(excitationdata[1]),np.min(excitationdata[1][excitationdata[1]>0])])
     ax[1].set_ylabel('Excitation wavelength (nm)')
     ax[1].set_xlabel('Time (s)')
     ax[1].set_title('Excitation')
@@ -537,7 +546,7 @@ if Debugmode==True:
 #%% excitation and emission correlation
 # taus=[0,1,2,5,10,30,100]
 # taus=[1,5,8,10,15]
-taus=[1,10]
+taus=[1,2,5,10]
 # taus = [5,10,100,400]
 # taus=np.arange(1,40,1)
 # plot = 'cov'
@@ -556,8 +565,8 @@ excwavelindices=(np.argmin(np.abs(excitationdata[1]-excwavelrange[0])),np.argmin
 
 excitationwavelengths = excitationdata[1][excwavelindices[0]:excwavelindices[1],1]
 
-limlow = 700
-limhigh = 800
+limlow = 800
+limhigh = 950
 Excitationdata = excitationdata[0][excwavelindices[0]:excwavelindices[1],limlow:limhigh]
 Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]
 
@@ -566,13 +575,29 @@ Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]
 # select certain wavelengths pairs that were correlated in a line plot.
 # most applicable to excitation and emission correlation
 
-# emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Excitationdata,excitationwavelengths,emissionwavelengths,taus=taus,plot=plot)
+emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Excitationdata,excitationwavelengths,emissionwavelengths,taus=taus,plot=plot)
 # emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Excitationdata,Excitationdata,excitationwavelengths,excitationwavelengths,taus=taus,plot=plot)
-emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Emissiondata,emissionwavelengths,emissionwavelengths,taus=taus,plot=plot)
+# emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Emissiondata,emissionwavelengths,emissionwavelengths,taus=taus,plot=plot)
 
 
 #%% correlation of fits of spectra
-fitted=rplm.fitspectra(Emissiondata,emissionwavelengths,0,len(Emissiondata[0]),model='Gauss',Debugmode=False)
+fitted=rplm.fitspectra(Emissiondata,emissionwavelengths,0,2,model='Gauss',Debugmode=False)
+
+fitted[0][51]=fitted[0][50]
+plt.figure()
+plt.plot(fitted[0])
+plt.xlabel('time')
+plt.ylabel('Center wavelength (nm)')
+plt.title('Fitted amplitudes')
+
+fittedmean = rplm.pearsoncorrelation1D(fitted[0])
+plt.figure()
+plt.scatter(fittedmean[3],fittedmean[0])
+plt.plot(fittedmean[3],np.repeat(-fittedmean[2],len(fittedmean[0])),c='r');plt.plot(fittedmean[3],np.repeat(fittedmean[2],len(fittedmean[0])),c='r');
+plt.xlabel('Delay tau')
+plt.ylabel('Correlation')
+plt.title('Correlation of fitted amplitudes')
+
 plt.figure()
 plt.plot(fitted[2])
 plt.xlabel('time')
@@ -586,6 +611,21 @@ plt.plot(fittedmean[3],np.repeat(-fittedmean[2],len(fittedmean[0])),c='r');plt.p
 plt.xlabel('Delay tau')
 plt.ylabel('Correlation')
 plt.title('Correlation of fitted maxima')
+
+fitted[4][51]=fitted[4][50]
+plt.figure()
+plt.plot(fitted[4])
+plt.xlabel('time')
+plt.ylabel('Width (nm)')
+plt.title('Fitted widths')
+
+fittedmean = rplm.pearsoncorrelation1D(fitted[4])
+plt.figure()
+plt.plot(fittedmean[3],fittedmean[0])
+plt.plot(fittedmean[3],np.repeat(-fittedmean[2],len(fittedmean[0])),c='r');plt.plot(fittedmean[3],np.repeat(fittedmean[2],len(fittedmean[0])),c='r');
+plt.xlabel('Delay tau')
+plt.ylabel('Correlation')
+plt.title('Correlation of fitted widths')
     #%% Robert code for emission excitation plot together
 emisspec = emissionspec
 emisspecold=emisspec[0][0,:,:]
@@ -1327,7 +1367,7 @@ binning=1
 mtimelimsdtmic=np.round(mtimelims/data[0]*1e-9)
 nbins=mtimelimsdtmic[1]-mtimelimsdtmic[0]
 
-histarray, Xedge, Yedge = np.histogram2d(data[2]*data[0]*1e9,calibcoeffs[1]+InVoltage(data[19]*data[1],Freq,Vpp,Voffset,Verror)*calibcoeffs[0],range=[[mtimelimsdtmic[0]*data[0]*1e9,mtimelimsdtmic[1]*data[0]*1e9],plotrange],bins=[int((nbins-1))*binning,50])
+histarray, Xedge, Yedge = np.histogram2d(data[2]*data[0]*1e9,calibcoeffs[1]+InVoltagenew_c(data[19]*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],range=[[mtimelimsdtmic[0]*data[0]*1e9,mtimelimsdtmic[1]*data[0]*1e9],plotrange],bins=[int((nbins-1))*binning,50])
 histarray = histarray.transpose() # tranpose somehow is necessary to plot this stuff right
 normalization = np.sum(histarray,axis=0)
 Xedge = Xedge[:-1]+0.5*(Xedge[1]-Xedge[0])
@@ -1336,8 +1376,8 @@ correction = np.zeros(histarray.shape)
 for j in range(len(normalization)):
     correction[:,j] = histarray[:,j] / normalization[j]
 plt.figure()
-# plt.imshow(histarray,aspect='auto',extent=[np.min(Xedge),np.max(Xedge),np.max(Yedge),np.min(Yedge)]) 
-plt.imshow(correction,aspect='auto',extent=[np.min(Xedge),np.max(Xedge),np.max(Yedge),np.min(Yedge)]) 
+plt.imshow(histarray,aspect='auto',extent=[np.min(Xedge),np.max(Xedge),np.max(Yedge),np.min(Yedge)]) 
+# plt.imshow(correction,aspect='auto',extent=[np.min(Xedge),np.max(Xedge),np.max(Yedge),np.min(Yedge)]) 
 plt.xlabel('Time (ns)')
 plt.ylabel('Excitation wavelength (nm)')
 plt.gca().invert_yaxis()
@@ -1414,7 +1454,7 @@ plt.ylabel('Excitation wavelength (nm)')
 plt.colorbar()
 #%% Ex spectrum vs time
 plt.figure()
-plt.hist2d(data[3]*data[1],calibcoeffs[1]+InVoltage(data[19]*data[1],Freq,Vpp,Voffset,Verror)*calibcoeffs[0],range=[[1,Texp],[530,590]],bins=[120,160])#,norm=mcolors.LogNorm())
+plt.hist2d(data[3]*data[1],calibcoeffs[1]+InVoltagenew_c(data[19]*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],range=[[1,Texp],[530,590]],bins=[120,160])#,norm=mcolors.LogNorm())
 plt.xlabel('Time (s)')
 plt.ylabel('Excitation wavelength (nm)')
 plt.colorbar()
