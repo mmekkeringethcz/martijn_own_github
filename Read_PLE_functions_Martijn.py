@@ -5,7 +5,7 @@ Created on Tue Jun  9 14:54:34 2020
 @author: Mekkering
 """
 
-
+#
 import os, numpy as np, csv, matplotlib.pyplot as plt, scipy.optimize as opt, math, struct, binascii, gc, time, random
 import multiprocessing
 from operator import sub
@@ -744,3 +744,60 @@ def repeatvector(vecin,repeattimes):
 def repeatvecparallel(k):
     return(np.matlib.repmat(calibcoeffs[1]+InVoltage(data[19][range(data[22][k+tau],data[22][k+tau+1]-1)]*dtmacro,Freq,Vpp,Voffset,Verror)*calibcoeffs[0],len(data[22])-tau,1))
 
+
+
+def InVoltage(t,Freq,VPP,VOffset,Verror):
+    Period=1/Freq
+    Bool1=t<=Period/4
+    Bool2=np.logical_and(t>Period/4,t<=3*Period/4)
+    Bool3=t>3*Period/4
+    InVoltage=(VPP/2*t/(Period/4)+VOffset-Verror)*Bool1+(VPP/2-VPP/2*(t-Period/4)/(Period/4)+VOffset+Verror)*Bool2+(-VPP/2+VPP/2*(t-3*Period/4)/(Period/4)+VOffset-Verror)*Bool3
+    return(InVoltage)
+
+def InVoltagenew(t,Freq,VPP,VOffset,tshift):
+    Period=1/Freq
+    t=t+tshift
+    Bool1=t<=Period/4
+    Bool2=np.logical_and(t>Period/4,t<=3*Period/4)
+    Bool3=t>3*Period/4
+    InVoltage=(VPP/2*t/(Period/4)+VOffset)*Bool1+(VPP/2-VPP/2*(t-Period/4)/(Period/4)+VOffset)*Bool2+(-VPP/2+VPP/2*(t-3*Period/4)/(Period/4)+VOffset)*Bool3
+    return(InVoltage)
+
+def Findtshift(Freq,Vpp,Voffset,calibcoeffs,macrocyclelist,dtmacro,matchrange=(500,570),shiftrange=(-6e-4,-2e-4), histbinnumber = 100,steps=30,Debugmode=False):
+    InVoltagenew_c=nb.jit(nopython=True)(InVoltagenew) #compile to C to speed it up
+    threshlow=1/Freq/4
+    threshhigh=3/Freq/4
+    #Sort microtimes in two halves
+    Z = np.logical_and(threshlow<(macrocyclelist*dtmacro),(macrocyclelist*dtmacro)<= threshhigh)
+    tforward=macrocyclelist[np.where(Z)]
+    tbackward=macrocyclelist[np.where(np.logical_not(Z))]
+    # histbinnumber = 100 # 608 was for the entire range. For a matchrange of 520 to 590, this should be 4 times as small than the original to prevent aliasing
+    #First coarse sweep
+    # matchrange=(500, 570) #Wavelengthrange in which it should match. Maybe exclude the boundaries a bit
+    tshift=np.zeros(steps)
+    autocorr=np.zeros(steps)
+    for k in tqdm(range(0,steps)):
+        tshift[k]=shiftrange[0]+(shiftrange[1]-shiftrange[0])*k/steps
+        lamforward=calibcoeffs[1]+InVoltagenew_c(tforward*dtmacro,Freq,Vpp,Voffset,tshift[k])*calibcoeffs[0]
+        lambackward=calibcoeffs[1]+InVoltagenew_c(tbackward*dtmacro,Freq,Vpp,Voffset,tshift[k])*calibcoeffs[0]
+        [ylistforward,xlistforward] = np.histogram(lamforward,histbinnumber,range=matchrange)
+        # tlistforward = (xlistforward[:-1]+0.5*(xlistforward[1]-xlistforward[0]))
+        [ylistbackward,xlistbackward] = np.histogram(lambackward,histbinnumber,range=matchrange)
+        # tlistbackward = (xlistbackward[:-1]+0.5*(xlistbackward[1]-xlistbackward[0]))
+        autocorr[k]=np.sum(ylistforward*ylistbackward)
+    if Debugmode==True:
+        plt.figure()
+        plt.plot(tshift,autocorr,'.')
+    optimumshift=tshift[np.argmax(autocorr)]
+    if Debugmode==True:
+        tshifttest=optimumshift
+        lamforward=calibcoeffs[1]+InVoltagenew(tforward*dtmacro,Freq,Vpp,Voffset,tshifttest)*calibcoeffs[0]
+        lambackward=calibcoeffs[1]+InVoltagenew(tbackward*dtmacro,Freq,Vpp,Voffset,tshifttest)*calibcoeffs[0]
+        [ylistforward,xlistforward] = np.histogram(lamforward,histbinnumber,range=matchrange)
+        tlistforward = (xlistforward[:-1]+0.5*(xlistforward[1]-xlistforward[0]))
+        [ylistbackward,xlistbackward] = np.histogram(lambackward,histbinnumber,range=matchrange)
+        tlistbackward = (xlistbackward[:-1]+0.5*(xlistbackward[1]-xlistbackward[0]))
+        plt.figure()
+        plt.plot(tlistforward,ylistforward)
+        plt.plot(tlistbackward,ylistbackward)
+    return optimumshift
