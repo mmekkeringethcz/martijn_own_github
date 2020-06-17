@@ -54,9 +54,26 @@ def histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram):
     for i in range(len(rawdata)-1):
         originaldataphotonlistindex = np.argmin(np.abs(originaldata-rawdata[i]))
         [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*data[19][rawdata[i]:originaldata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
-        binnedintensities[:,i]=intensitiestemp
         wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
         binnedwavelengths[:,i]= wavelengthstempavg
+        binnedintensities[:,i]=intensitiestemp
+        
+        
+    return binnedintensities,binnedwavelengths
+
+
+def histogramexcitationspectranorm(rawdata,originaldata,wavelengthrange,histogram,interprefspec):
+#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
+    binnedintensities = np.zeros((histogram,len(rawdata)))
+    binnedwavelengths = np.zeros((histogram,len(rawdata)))
+    
+    for i in range(len(rawdata)-1):
+        originaldataphotonlistindex = np.argmin(np.abs(originaldata-rawdata[i]))
+        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*data[19][rawdata[i]:originaldata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
+        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
+        binnedwavelengths[:,i]= wavelengthstempavg
+        binnedintensities[:,i]=intensitiestemp/interprefspec(wavelengthstempavg)
+        
         
     return binnedintensities,binnedwavelengths
 # In[25]:
@@ -72,7 +89,7 @@ basefolders={'DESKTOP-BK4HAII':'C:/Users/rober/Documents/Doktorat/Projects/Singl
              'mavt-omel-w004w':'E:/LAB_DATA/Robert/'} #dictionary which base folder to use on which computer. For you this probably would be everything until 
 folder = basefolders[socket.gethostname()]+'20200612_HR148_RT/'
 
-filename = 'HR148_9p734MHz_200Hz_500mVpp_60mVoffset_QD2_ND1'
+filename = 'HR148_9p734MHz_200Hz_500mVpp_60mVoffset_QD1_ND1'
 
 settingsfile= filename+'_settings'
 HHsettings=rpl.load_obj(settingsfile, folder )
@@ -161,18 +178,18 @@ histogrambin=247
 [excspec,excspecwavtemp] = np.histogram(InVoltagenew_c(dtmacro*data[19],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogrambin,range=wavelengthrange)
 excspecwav = [excspecwavtemp[:-1]+(excspecwavtemp[1]-excspecwavtemp[0])/2]
 excspeccorr = excspec/interprefspec(excspecwav)
-plt.figure()
-plt.plot(excspecwav[0],excspeccorr[0])   
-plt.title('Laser corrected') 
 
 plt.figure()
 plt.plot(excspecwav[0],excspec)    
 plt.title('Original') 
 
+plt.figure()
+plt.plot(excspecwav[0],excspeccorr[0])   
+plt.title('Laser corrected') 
 
 #%% Generate binned excitation spectra
 #this generates part of unbinned excitation spectra. It does not resolve for forward and backward scan
-binning = 1/10 #binning is in units of seconds (s)
+binning = 103 #binning is in units of seconds (s)
 expplottime = data[17][-1]*dtmacro
 excitationbegin = data[17][0]*dtmacro
 # binning = 1 #binning is in units of seconds (s)
@@ -469,11 +486,13 @@ emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorre
 rawdata = data[25]
 originaldata= data[25]
 wavelengthrange = (500,593)
-histogram = 200
+histogram = 400
 excitationdata = histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram)
+# excitationdata = histogramexcitationspectranorm(rawdata,originaldata,wavelengthrange,histogram,interprefspec)
 
-for j in range(len(excitationdata[0][0])):
-    excitationdata[0][:,j] = excitationdata[0][:,j]-np.mean(excitationdata[0][:,j])
+# for j in range(len(excitationdata[0][0])):
+#     excitationdata[0][:,j] = excitationdata[0][:,j]-np.mean(excitationdata[0][:,j])
+
     
 plt.figure()
 plt.imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]],vmin=0)
@@ -483,6 +502,63 @@ plt.ylabel('Excitation Wavelength (nm)')
 plt.xlabel('time (s)')
 plt.title('Full excitation spectra')  
 
+#%% fit only part of emission and then overplot with sampled function
+emwavelrange=(605,640)
+emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
+
+
+timeaverage=timeaverage.ravel()
+
+test = timeaverage[emwavelindices[0]:emwavelindices[1]]
+testwavelengths=wavelengths[emwavelindices[0]:emwavelindices[1]]
+
+lormod = LorentzianModel(prefix='Lor_')   
+
+pars = lormod.guess(test, x=testwavelengths)
+
+constmod = ConstantModel(prefix='Const_') 
+pars.update(constmod.make_params())
+
+mod = lormod + constmod
+
+init = mod.eval(pars, x=testwavelengths)
+out = mod.fit(test, pars, x=testwavelengths)
+
+
+plt.figure()
+plt.plot(testwavelengths,test,label='experimental data')
+# plt.plot(wavelengths, out.init_fit, 'k--', label='initial fit')
+plt.plot(testwavelengths,out.best_fit,label='best fit')
+plt.xlabel('Wavelength (nm)')
+plt.ylabel('Intensity')
+plt.legend(loc=0)
+
+print(out.fit_report())
+fitreport=out.fit_report()
+
+def lorentzian(x,amplitude,mu,sigma,background):
+    lor = amplitude*2/(2*np.pi)*sigma/((x-mu)**2+sigma**2)+background
+    return lor
+
+
+
+amplitude = float(fitreport.split('amplitude:')[-1].split('+')[0])
+# amplitudeerr = float(fitreport.split('amplitude:')[-1].split('+/-')[1].split('(')[0])
+center = float(fitreport.split('center:')[-1].split('+')[0])
+# centererr = float(fitreport.split('center:')[-1].split('+/-')[1].split('(')[0])
+sigma = float(fitreport.split('sigma:')[-1].split('+')[0])
+# sigmaerr = float(fitreport.split('sigma:')[-1].split('+/-')[1].split('(')[0])
+background = 454
+x=testwavelengths
+
+lorplot= lorentzian(x,amplitude,center,sigma,background)
+plt.figure()
+plt.plot(x,lorplot)
+plt.plot(wavelengths,timeaverage)
+
+plt.figure()
+plt.plot(x,lorplot)
+plt.plot(testwavelengths,test)
 #%% #select particular exctiation wavelength based on chosen range emission wavelengths
 emwavelrange = np.array([(606.5,609.5),(611.5,614.5),(615,618)])
 emwavindices = np.zeros(emwavelrange.shape)
@@ -552,7 +628,7 @@ if Debugmode==True:
     
     #done to visualize same plot but just under Yfiltered indexes
     fig,ax=plt.subplots(2,1,sharex=True,sharey=False) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
-    im0=ax[0].imshow(Yfiltered,extent=[0,len(Yfiltered[0]),np.max(wavelengths),np.min(wavelengths)],aspect='auto')
+    im0=ax[0].imshow(Yfiltered,extent=[0,len(Yfiltered[0]),np.max(wavelengths),np.min(wavelengths)],aspect='auto',vmax=4000)
     # im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)])
     ax[0].set_ylabel('Emission wavelength (nm)')
     ax[0].set_xlabel('Index')
@@ -574,7 +650,9 @@ if Debugmode==True:
 #%% excitation and emission correlation
 # taus=[0,1,2,5,10,30,100]
 # taus=[1,5,8,10,15]
-taus=[1,2,5,10]
+taus=[1,10,20]
+taus=[0,1,2]
+# taus=[0]
 # taus = [5,10,100,400]
 # taus=np.arange(1,40,1)
 # plot = 'cov'
@@ -582,7 +660,7 @@ plot = 'corr'
 # plot = 'none'
 # Emissiondata1 = Yfiltered[:,0:100] #can get postselection by selecting only a particular window. Note that you need emissiondata to plot insteada of Yfiltered
 # Emissiondata2 = binnedintensities[:,0:100]
-emwavelrange=(605,645)
+emwavelrange=(605,618)
 emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
 
 emissionwavelengths = wavelengths[emwavelindices[0]:emwavelindices[1]]
@@ -593,8 +671,8 @@ excwavelindices=(np.argmin(np.abs(excitationdata[1]-excwavelrange[0])),np.argmin
 
 excitationwavelengths = excitationdata[1][excwavelindices[0]:excwavelindices[1],1]
 
-limlow = 600
-limhigh = 800
+limlow = 2000
+limhigh = 2300
 Excitationdata = excitationdata[0][excwavelindices[0]:excwavelindices[1],limlow:limhigh]
 Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]
 
@@ -605,11 +683,11 @@ Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]
 
 excemmcovariance,excemmnormalization,excemmcorrelation = rplm.pearsoncorrelation(Emissiondata,Excitationdata,excitationwavelengths,emissionwavelengths,taus=taus,plot=plot)
 # excitationcovariance,excitationnormalization,excitationcorrelation = rplm.pearsoncorrelation(Excitationdata,Excitationdata,excitationwavelengths,excitationwavelengths,taus=taus,plot=plot)
-emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Emissiondata,emissionwavelengths,emissionwavelengths,taus=taus,plot=plot)
+# emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Emissiondata,emissionwavelengths,emissionwavelengths,taus=taus,plot=plot)
 
 
 #%% correlation of fits of spectra
-fitted=rplm.fitspectra(Emissiondata,emissionwavelengths,0,1000,model='Gauss',Debugmode=False)
+fitted=rplm.fitspectra(Emissiondata,emissionwavelengths,0,100,model='Lor',Debugmode=False)
 
 fitted[0][51]=fitted[0][50]
 plt.figure()
@@ -848,7 +926,7 @@ for j in js:
     
 #%% Wiener process
 #synthetic data starts here
-centerstart,scaling,length = 600,1/40,500
+centerstart,scaling,length = 600,1/10,500
 wiener=rplm.wienerprocess(centerstart,scaling,length)
 wiener2=(wiener-centerstart)*1.5+centerstart
 wiener3=(wiener-centerstart)*2+centerstart
@@ -920,15 +998,16 @@ mean = np.copy(wiener)
 amplitude = np.ones(len(mean)) #fixed amplitudes
 # amplitude = (np.copy(wiener[1])-centerstart)*100
 # sigma = np.zeros(len(mean))
-sigma = np.ones(len(mean))*1/2
+sigma = np.ones(len(mean))*1
 # sigma = np.random.random(len(mean))*8
 
-testwavelengths=np.linspace(597,603,400)
+testwavelengths=np.linspace(595,605,400)
 
-test2 = randomsamp(mean,amplitude,sigma,testwavelengths,nrphotons=200,bins=600) 
+test2 = randomsamp(mean,amplitude,sigma,testwavelengths,nrphotons=2000,bins=600) 
+# test2 = randomsamp2(mean,amplitude,sigma,testwavelengths) 
 # test2 = randomsamp(mean,amplitude,sigma,2000) 
 
-testplots=[1,10,50,100]
+testplots=[1,10,50,500]
 plt.figure()
 for i in range(len(testplots)):
     plt.plot(test2[0],test2[2][:,i])
@@ -947,7 +1026,7 @@ plt.ylabel('Correlation')
 plt.title('Correlation of simulated maxima')
 
 
-fitted=rpl.fitspectra(test2[2],test2[0],0,len(test2[2][0]),model='Gauss',Debugmode=False)
+fitted=rplm.fitspectra(test2[2],test2[0],0,len(test2[2][0]),model='Gauss',Debugmode=False)
 plt.figure()
 plt.plot(fitted[2])
 plt.xlabel('time')
@@ -972,8 +1051,8 @@ plt.ylabel('Correlation')
 plt.title('Correlation of fitted maxima')
 #%%
 
-timeselectedmin=250
-timeselectedmax=350
+timeselectedmin=50
+timeselectedmax=150
 fittedmeanselected=rplm.pearsoncorrelation1D(mean[timeselectedmin:timeselectedmax])
 plt.figure()
 plt.plot(fittedmeanselected[3],fittedmeanselected[0])
@@ -995,7 +1074,7 @@ plt.title('Correlation of fitted maxima postselected ('+str(timeselectedmin)+' -
 #%% pearson correltaion map
 
 
-taus =  [1,2,3,4]
+taus =  [1,2,4]
 # taus = np.arange(0,60,3)
 
 # taus = [1,2,3,4,5]
@@ -1014,7 +1093,7 @@ testwavelengths=test2[0][minwavspec1:maxwavspec1]
 # for i in range(size):
 #     plt.plot(testwavelengths,test2[2][:,i])
 timeend=len(mean) 
-covnormcorr = rplm.pearsoncorrelation(test2[2][minwavspec1:maxwavspec1,:timeend],test2[2][minwavspec1:maxwavspec1,:timeend],testwavelengths,testwavelengths,taus=taus,plot=plot)
+# covnormcorr = rplm.pearsoncorrelation(test2[2][minwavspec1:maxwavspec1,:timeend],test2[2][minwavspec1:maxwavspec1,:timeend],testwavelengths,testwavelengths,taus=taus,plot=plot)
 covnormcorr = rplm.pearsoncorrelation(test2[2][minwavspec1:maxwavspec1,timeselectedmin:timeselectedmax],test2[2][minwavspec1:maxwavspec1,timeselectedmin:timeselectedmax],testwavelengths,testwavelengths,taus=taus,plot=plot)
 # plt.figure()
 # plt.imshow(test2[2].T,extent=[np.min(testwavelengths),np.max(testwavelengths),len(mean),0],aspect='auto')
@@ -1023,19 +1102,19 @@ covnormcorr = rplm.pearsoncorrelation(test2[2][minwavspec1:maxwavspec1,timeselec
 # plt.ylabel('time (bins)')
 # plt.title('Simulated data')
 
-for i in range(len(taus)):
-    tau=taus[i]
-    # if tau==0:
-    vmin=-0.2
-    vmax0corr=0.3
-    # print(vmax0corr)
-    plt.figure()
-    plt.imshow(covnormcorr[2][i],extent=[test2[0][minwavspec1],test2[0][maxwavspec1],test2[0][maxwavspec1],test2[0][minwavspec1]],vmin=vmin,vmax=vmax0corr)
-    plt.colorbar()
-    plt.gca().invert_yaxis()
-    plt.xlabel('Wavelength (nm)')
-    plt.ylabel('Wavelength (nm)')
-    plt.title('Correlation map. tau = '+str(taus[i]))
+# for i in range(len(taus)):
+#     tau=taus[i]
+#     # if tau==0:
+#     vmin=-0.2
+#     vmax0corr=0.3
+#     # print(vmax0corr)
+#     plt.figure()
+#     plt.imshow(covnormcorr[2][i],extent=[test2[0][minwavspec1],test2[0][maxwavspec1],test2[0][maxwavspec1],test2[0][minwavspec1]],vmin=vmin,vmax=vmax0corr)
+#     plt.colorbar()
+#     plt.gca().invert_yaxis()
+#     plt.xlabel('Wavelength (nm)')
+#     plt.ylabel('Wavelength (nm)')
+#     plt.title('Correlation map. tau = '+str(taus[i]))
 
     # if savefig=True: #attempt to save figures on the fly
     # plt.savefig('E:/Martijn/ETH/results/20200310_PM111_specdiffusion/QD2/Correlation_map_tau'+str(tau)+'_excitation',dpi=800) 
@@ -1470,7 +1549,7 @@ wavellimit = 590
 wavellimitlow= 500
 
 
-exwavel = calibcoeffs[1]+InVoltage(data[19]*data[1],Freq,Vpp,Voffset,Verror)*calibcoeffs[0]
+exwavel = calibcoeffs[1]+InVoltagenew_c(data[19]*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]
 for j in tqdm(range(len(data[2]))):
     if exwavel[j] > wavellimit:
         microtimesred[nrred] = data[2][j]
@@ -1519,20 +1598,20 @@ macrotimescycleblue = macrotimescycleblue[:nrblue]
 #
 #%% SPectral diffusion 2
 plt.figure()
-plt.hist2d(data[3]*data[1],calibcoeffs[1]+InVoltage(data[19]*data[1],Freq,Vpp,Voffset,Verror)*calibcoeffs[0],range=[[1,Texp],[520,590]],bins=[2400,40])#,norm=mcolors.LogNorm())
+plt.hist2d(data[3]*data[1],calibcoeffs[1]+InVoltagenew_c(data[19]*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],range=[[1,Texp],[520,590]],bins=[2400,40])#,norm=mcolors.LogNorm())
 plt.xlabel('Time (s)')
 plt.ylabel('Excitation wavelength (nm)')
 plt.colorbar()
 plt.plot(np.arange(len(limitsblue)-1)*binwidthspecdiff,Meanexwavel,'w')
 #%% Plot excitation gated decay
 # plt.figure()
-MaxLikelihoodFunction_c = nb.jit(nopython=True)(MaxLikelihoodFunction)
-fitdata=GetLifetime(microtimesblue,dtmicro,dtmacro,250e-9,tstart=-1,plotbool=True,ybg=-1,method='ML_c')
+MaxLikelihoodFunction_c = nb.jit(nopython=True)(rpl.MaxLikelihoodFunction)
+fitdata=rpl.GetLifetime(microtimesblue,dtmicro,dtmacro,250e-9,tstart=-1,plotbool=True,ybg=-1,method='ML_c')
 # plt.xlim([18,100])
 # plt.set_yscale('log')
 
 #%% Lifetime vs Intensity
-MaxLikelihoodFunction_c = nb.jit(nopython=True)(MaxLikelihoodFunction)
+MaxLikelihoodFunction_c = nb.jit(nopython=True)(rpl.MaxLikelihoodFunction)
 #macrotimesin=data[3]
 #microtimesin=data[2]
 microtimesin=microtimesblue
@@ -1553,7 +1632,7 @@ meanex=np.zeros(len(limits)-1)
 stdex=np.zeros(len(limits)-1)
 histbinmultiplier=1
 plt.figure()
-lifetime=GetLifetime(microtimesin,dtmicro,dtmacro,100e-9,tstart=-1,histbinmultiplier=1,ybg=-1,plotbool=True,method='ML_c')
+lifetime=rpl.GetLifetime(microtimesin,dtmicro,dtmacro,100e-9,tstart=-1,histbinmultiplier=1,ybg=-1,plotbool=True,method='ML_c')
 plt.show()
 #[taulist,Alist,ybglist] = Parallel(n_jobs=-1, max_nbytes=None)(delayed(processInput)(tbinnr) for tbinnr in tqdm(range(nrtbins-1)))
 #plt.figure()
@@ -1605,127 +1684,13 @@ ax2.set_ylim([0,40])
 ax2.set_ylabel('Lifetime (ns)', color='r')
 ax2.tick_params('y', colors='r')
 #ax2.ticklabel_format(style='sci',scilimits=(-2,3),axis='both')
-ax1.set_title(namelist[0])
+ax1.set_title(filename[0])
 
 
 #%% Lifetime correlation
 # this idea is based on not using the GetLifeTime function to generate lifetimes, but instead make a 2D correlation map with the observed microtime (and macrotime), separated by a time interval of dT
-shortset = 1000 #not analyzing all the data to save time during checks
-microtimes = data[2][0:shortset]*dtmicro*1e9 #nanoseconds
-macrotimes = data[3][0:shortset]*dtmacro #seconds
-
-dt = 0.05 #seconds
-# dt = microtimes[1]-microtimes[0] #seconds
-# timerange = 1e-1
-dt = macrotimes[1]-macrotimes[0] #seconds
-timerange = 1e-4
 
 
-# krange = int(shortset/100)
-krange = shortset
-macrotimesindex = np.zeros((len(macrotimes),krange))
-# macrotimesindex = np.zeros(len(macrotimes))
-
-for j in tqdm(range(len(macrotimes))):
-    for k in range(krange):
-        if dt-timerange<=macrotimes[j]-macrotimes[k]<=dt+timerange:
-        # if dt-timerange<=microtimes[j]-microtimes[k]<=dt+timerange:
-            macrotimesindex[j,k]+=1 #shows up hits when at position j,k the condition was satisfied
-            #makes something where it kind of searches where the j parameter is a t the moment
-plt.figure()
-plt.imshow(macrotimesindex,aspect='auto')
-plt.gca().invert_yaxis()
-            
-microtimes1 = np.zeros(len(macrotimes))
-microtimes2 = np.zeros(len(macrotimes))
-
-for j in tqdm(range(len(macrotimes))): #might wanna combine this step with the step above so that you dont have to generate such a large array (because that is not going to be able to be handled by your pc). also think of something where you can decrease the size of the array by selectively looking for photons in the range where the j loop is already
-    for k in range(krange):
-        if macrotimesindex[j,k]==1:
-            microtimes1[j] = microtimes[j] #search for microtimes when condition is met
-            microtimes2[j] = microtimes[k]
-            
-microtimes1sor = sorted(microtimes1) #sort them
-microtimes2sor = sorted(microtimes2)
-
-hist,xedge,yedge = np.histogram2d(microtimes1sor,microtimes2sor,bins=20)
-            
-
-
-plt.figure()
-plt.imshow(hist,extent=[np.min(xedge),np.max(xedge),np.max(yedge),np.min(yedge)]) #shows correlation map of correlated part, witht axis meaning delay time (not lifetime). Lifetime is generated based on laplace transform of this stuff
-plt.gca().invert_yaxis()
-plt.colorbar()
-
-#now thingss get ugly in the sense that you now have to do this laplace stuff
-
-#%% Lifetime correlation
-# this idea is based on not using the GetLifeTime function to generate lifetimes, but instead make a 2D correlation map with the observed microtime (and macrotime), separated by a time interval of dT
-shortset = 10000 #not analyzing all the data to save time during checks
-microtimes = (data[2][0:shortset]-lifetime[3])*dtmicro*1e9 #nanoseconds
-macrotimes = data[3][0:shortset]*dtmacro #seconds
-
-# dt = 0.05 #seconds
-# dt = microtimes[1]-microtimes[0] #seconds
-# timerange = 1e-1
-# dt = macrotimes[1]-macrotimes[0] #seconds
-# timerange = 1e-4
-tmin=0
-tmax=1/10
-
-krange = int(shortset/100)
-
-microtimes1 = np.zeros(len(macrotimes))
-microtimes2 = np.zeros(len(macrotimes))
-microtimes2 = np.zeros((len(macrotimes),krange,krange))
-
-
-# for j in tqdm(range(6)): #idea was sort of to not let k run through all the values but only a selected part to increase the speed. It works.
-#     # if j < krange:
-#     for k in range(10):
-#         if tmin<=macrotimes[j]-macrotimes[k]<=tmax:
-#             print("found a hit")
-
-for j in tqdm(range(len(macrotimes))): #idea was sort of to not let k run through all the values but only a selected part to increase the speed. It works.
-    if j < krange:
-        for k in range(krange):
-            if tmin<=macrotimes[j]-macrotimes[k]<=tmax:
-                # print("found a hit")
-            # if dt-timerange<=macrotimes[j]-macrotimes[k]<=dt+timerange:
-            # if dt-timerange<=microtimes[j]-microtimes[k]<=dt+timerange:
-                microtimes1[j] = microtimes[j] #search for microtimes when condition is met
-                microtimes2[j][k][k] = microtimes[k]
-    elif j+krange<len(macrotimes):
-        for k in range(j-krange,j+krange):
-            if tmin<=macrotimes[j]-macrotimes[k]<=tmax:
-            # if dt-timerange<=macrotimes[j]-macrotimes[k]<=dt+timerange:
-            # if dt-timerange<=microtimes[j]-microtimes[k]<=dt+timerange:
-                microtimes1[j] = microtimes[j] #search for microtimes when condition is met
-                microtimes2[j] = microtimes[k]
-                
-    else:
-        for k in range(j-krange,len(macrotimes)):
-            if tmin<=macrotimes[j]-macrotimes[k]<=tmax:
-            # if dt-timerange<=macrotimes[j]-macrotimes[k]<=dt+timerange:
-    # if dt-timerange<=microtimes[j]-microtimes[k]<=dt+timerange:
-                microtimes1[j] = microtimes[j] #search for microtimes when condition is met
-                microtimes2[j] = microtimes[k]
-            
-                
-microtimes1sor = sorted(microtimes1) #sort them
-microtimes2sor = sorted(microtimes2)
-
-hist,xedge,yedge = np.histogram2d(microtimes1sor,microtimes2sor,bins=200)
-            
-
-
-plt.figure()
-plt.imshow(hist,extent=[np.min(xedge),np.max(xedge),np.max(yedge),np.min(yedge)]) #shows correlation map of correlated part, witht axis meaning delay time (not lifetime). Lifetime is generated based on laplace transform of this stuff
-plt.gca().invert_yaxis()
-plt.colorbar()
-
-#now thingss get ugly in the sense that you now have to do this laplace stuff
-#%%
 shortset = 1000 #not analyzing all the data to save time during checks
 microtimes = (data[2][0:shortset]-lifetime[3]) #nanoseconds
 macrotimes = data[3][0:shortset]#seconds
@@ -1778,7 +1743,9 @@ plt.hist2d(microtimes1,microtimes2,bins=100)
 # plt.imshow(hist)       
 # plt.colorbar()
 
-            
+           #now thingss get ugly in the sense that you now have to do this laplace stuff
+
+ 
 #%%Plot selected spectra
 #plt.figure()
 #reftoplot=np.sum(Exspeclist,1)

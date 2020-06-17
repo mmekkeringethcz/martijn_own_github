@@ -43,9 +43,11 @@ def fitspectra(binnedspectra,wavelengths,startfit,endfit,model,Debugmode=False):
         lormod = GaussianModel(prefix='Gauss_')
     elif model=='Lor':
         lormod = LorentzianModel(prefix='Lor_')
+    elif model=='Voigt':
+        lormod = VoigtModel(prefix='Voigt_')
     
 
-    pars = lormod.guess(timeaverage-np.min(timeaverage), x=wavelengths)
+    pars = lormod.guess(timeaverage, x=wavelengths)
     
     constmod = ConstantModel(prefix='Const_') 
     pars.update(constmod.make_params())
@@ -53,7 +55,7 @@ def fitspectra(binnedspectra,wavelengths,startfit,endfit,model,Debugmode=False):
     mod = lormod + constmod
     
     init = mod.eval(pars, x=wavelengths)
-    out = mod.fit(timeaverage-np.min(timeaverage), pars, x=wavelengths)
+    out = mod.fit(timeaverage, pars, x=wavelengths)
     
     
     plt.figure()
@@ -679,7 +681,7 @@ def find_origin(normalizationdata,guessorigin,wavelengths,prominence=10,width=15
     peaks,rest= scipy.signal.find_peaks(temp,width=width,prominence=prominence)
     minimalvalue = np.argmin(np.abs(wavelengths[peaks]-guessorigin))
     peakprominent = peaks[minimalvalue]
-    return peakprominent
+    return peakprominent,peaks
 
 def Fouriercomponentvstau(fourierdata, fourierangles, selectedradii):
     #less of a mess in script when components are matched
