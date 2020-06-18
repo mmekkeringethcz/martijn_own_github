@@ -535,7 +535,7 @@ for j in range(len(emwavelrange)):
 
 emwavelrange=(606,609.5)
 emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
-croppedwavelengths=[emwavelindices[0]:emwavelindices[1],emwavelindices[0]:emwavelindices[1]]
+croppedwavelengths=wavelengths[emwavelindices[0]:emwavelindices[1]]
 searchedtaus=taus
 croppedtest=test[:,emwavelindices[0]:emwavelindices[1],emwavelindices[0]:emwavelindices[1]]
 maxima=np.zeros((len(searchedtaus),2),dtype='int64')
@@ -545,7 +545,19 @@ for j in range(len(searchedtaus)):
 wavmax0=croppedwavelengths[maxima[:,0]]
 wavmax1=croppedwavelengths[maxima[:,1]]
 
+plt.figure()
+plt.plot(wavmax0);plt.plot(wavmax1)
+
 fitted=rplm.fitspectra(Emissiondata1,wavelengths,0,len(Emissiondata1[0]),model='Lor',Debugmode=False)
+fitted=rplm.fitspectra(Emissiondata1,wavelengths,0,1,model='Lor',Debugmode=True)
+
+origin=np.zeros(len(taus))
+guessorigin=607
+for j in range(len(taus)):
+    
+    origin[j],rest= rplm.find_origin(emissionnormalization[j],guessorigin,wavelengths)#,prominence=50,width=5)
+
+# print('index in list: ',origin, ' wavelength in plot: ',wavelengths[origin])
 #%% Generate binned excitation spectra for excitation emission correlation
 # #select particular exctiation wavelength based on chosen range emission wavelengths
 
