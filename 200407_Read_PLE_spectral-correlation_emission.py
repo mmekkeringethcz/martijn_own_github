@@ -87,13 +87,13 @@ Debugmode=False     #Set to true to make plots in the individual sections of the
 basefolders={'DESKTOP-BK4HAII':'C:/Users/rober/Documents/Doktorat/Projects/SingleParticle_PLE/Andor Spectrometer/',
              'HP_Probook':'E:/Martijn/ETH/results/',
              'mavt-omel-w004w':'E:/LAB_DATA/Robert/'} #dictionary which base folder to use on which computer. For you this probably would be everything until 
-folder = basefolders[socket.gethostname()]+'20200612_HR148_RT/'
+folder = basefolders[socket.gethostname()]+'20200520_PLE_noCdS_RT_cryo/'
 
-filename = 'HR148_9p734MHz_200Hz_500mVpp_60mVoffset_QD1_ND1'
+filename = 'HR63_5p5MHz_200Hz_240mVpp_off0mV_QD3_cryo_withcamera'
 
 settingsfile= filename+'_settings'
-HHsettings=rpl.load_obj(settingsfile, folder )
-# HHsettings={}
+# HHsettings=rpl.load_obj(settingsfile, folder )
+HHsettings={}
 
 Texp = 240 # total time [s] of measurements
 binwidth = 0.01 # width of time bins to create intensity trace [s]
@@ -107,7 +107,7 @@ binwidth = 0.01 # width of time bins to create intensity trace [s]
 # taubinlist = np.zeros(nrtbins-1,dtype=float) # init list to save lifetimes of each time bin (binwidth)
 # intbinlist = np.zeros(nrtbins-1,dtype=float) # init list to save intensity per bin
 
-data = rpl.ImportT3(folder + filename + '.out',HHsettings)
+data = rpl.ImportT3(folder + filename + '.ptu',HHsettings)
 Texp = round(data[8]*data[1]*1024,0) # macrotime values can store up to 2^10 = 1024 before overflow. overflows*1024*dtmacro gives experiment time [s]
 print('averaged cps on det0 and det1:',np.array(data[6:8])/Texp)
 print('experimental time in s:',Texp)
@@ -126,8 +126,8 @@ Wavelength_calib=np.array([578.6,560.2,541.5,560.3,504.9])
 calibcoeffs=np.polyfit(Voltage,Wavelength_calib,1)
 Vpp=float(filename.split('mVpp_')[0].split('_')[-1])
 Freq=float(filename.split('Hz_')[-2])
-Voffset=float(filename.split('mVoffset')[0].split('Vpp_')[-1])
-# Voffset=0
+# Voffset=float(filename.split('mVoffset')[0].split('Vpp_')[-1])
+Voffset=0
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,(500,570),(-6e-4,-2e-4)) #coarse sweep
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,(500,570),(tshift-1e-5,tshift+1e-5),Debugmode=True)
 
@@ -447,16 +447,17 @@ emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorre
     # up til now only postselection
 
 
-# taus = np.arange(0,50,1)
+taus = np.arange(0,20,1)
 # taus=[0,5,10,100]
-taus=[0,1,2]
+# taus=[0,1,2]
 
-taus=[1]
+# taus=[1]
 # taus=[1,2,10,15]
 # plot = 'corr'
-plot='norm'
-plot='all'
+# plot='norm'
+# plot='all'
 # plot = 'cov'
+plot='none'
 
 # wavmin = 80
 # wavelengths[wavmin]
@@ -464,8 +465,8 @@ plot='all'
 # wavmax = 300
 # wavelengths[wavmax]
 
-timemin = 0
-timemax = 2400
+timemin = 700
+timemax = 900
 Emissiondata1 = Yfiltered[:,timemin:timemax] #can get postselection by selecting only a particular window. Note that you need emissiondata to plot insteada of Yfiltered
 Emissiondata2 = Yfiltered[:,timemin:timemax]
 
@@ -479,6 +480,72 @@ Emissiondata2 = Yfiltered[:,timemin:timemax]
 
 emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata1,Emissiondata2,wavelengths,wavelengths,taus=taus,plot=plot)
 
+
+
+for i in range(10,11):
+    tau=taus[i]
+    # if tau==0:
+    # vmin=-0.2
+    # vmax0corr=0.3
+    # print(vmax0corr)
+    plt.figure()
+    plt.imshow(emissioncorrelation[i],extent=[np.min(wavelengths),np.max(wavelengths),np.max(wavelengths),np.min(wavelengths)])
+    plt.colorbar()
+    plt.gca().invert_yaxis()
+    plt.xlabel('Wavelength (nm)')
+    plt.ylabel('Wavelength (nm)')
+    plt.title('Correlation map. tau = '+str(taus[i]))
+
+test = emissioncorrelation
+# wavinterest = [119,120,121,125,250]
+emwavelrange=[607,607.5,608,608.5,610]
+for j in range(len(emwavelrange)):
+    # wavselect = wavinterest[j]
+    wavselect=np.argmin(np.abs(wavelengths-emwavelrange[j]))
+    vmax=0.4
+    plt.figure()
+    plt.imshow(test[:,wavselect,:],extent=[np.min(wavelengths),np.max(wavelengths),np.max(taus),np.min(taus)],vmax=vmax,aspect='auto')
+    plt.gca().invert_yaxis()
+    plt.colorbar()
+    plt.xlabel('Emission wavelength (nm)')
+    plt.ylabel('Delay time')
+    plt.title('Correlation map. wav =' +str(wavelengths[wavselect])+'nm.')
+    
+guessorigin=607
+origin,rest = rplm.find_origin(emissionnormalization[1],guessorigin,wavelengths)#,prominence=50,width=5)
+
+print('index in list: ',origin, ' wavelength in plot: ',wavelengths[origin])
+
+
+test = emissioncorrelation
+# wavinterest = [119,120,121,125,250]
+emwavelrange=[607.91]
+for j in range(len(emwavelrange)):
+    # wavselect = wavinterest[j]
+    wavselect=np.argmin(np.abs(wavelengths-emwavelrange[j]))
+    vmax=0.4
+    plt.figure()
+    plt.imshow(test[:,wavselect,:],extent=[np.min(wavelengths),np.max(wavelengths),np.max(taus),np.min(taus)],vmax=vmax,aspect='auto')
+    plt.gca().invert_yaxis()
+    plt.colorbar()
+    plt.xlabel('Emission wavelength (nm)')
+    plt.ylabel('Delay time')
+    plt.title('Correlation map. wav =' +str(wavelengths[wavselect])+'nm.')
+    
+
+emwavelrange=(606,609.5)
+emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
+croppedwavelengths=[emwavelindices[0]:emwavelindices[1],emwavelindices[0]:emwavelindices[1]]
+searchedtaus=taus
+croppedtest=test[:,emwavelindices[0]:emwavelindices[1],emwavelindices[0]:emwavelindices[1]]
+maxima=np.zeros((len(searchedtaus),2),dtype='int64')
+for j in range(len(searchedtaus)):
+    # maxima[j] = np.argmax(test[j,emwavelindices[0]:emwavelindices[1],emwavelindices[0]:emwavelindices[1]])
+    maxima[j,:] = np.unravel_index(croppedtest[j].argmax(),croppedtest[j].shape)
+wavmax0=croppedwavelengths[maxima[:,0]]
+wavmax1=croppedwavelengths[maxima[:,1]]
+
+fitted=rplm.fitspectra(Emissiondata1,wavelengths,0,len(Emissiondata1[0]),model='Lor',Debugmode=False)
 #%% Generate binned excitation spectra for excitation emission correlation
 # #select particular exctiation wavelength based on chosen range emission wavelengths
 
