@@ -36,6 +36,37 @@ from lmfit.models import LorentzianModel, GaussianModel, VoigtModel, LinearModel
 import socket #enables to find computer name to make less of a mess with folders
 # %matplotlib auto
 
+def fittimeaverage(timeaverage,wavelengths,model):
+    
+    if model=='Gauss':
+        lormod = GaussianModel(prefix='Gauss_')
+    elif model=='Lor':
+        lormod = LorentzianModel(prefix='Lor_')
+    elif model=='Voigt':
+        lormod = VoigtModel(prefix='Voigt_')
+    
+
+    pars = lormod.guess(timeaverage, x=wavelengths)
+    
+    constmod = ConstantModel(prefix='Const_') 
+    pars.update(constmod.make_params())
+    
+    mod = lormod + constmod
+    
+    init = mod.eval(pars, x=wavelengths)
+    out = mod.fit(timeaverage, pars, x=wavelengths)
+    
+    
+    plt.figure()
+    plt.plot(wavelengths,timeaverage,label='experimental data')
+    # plt.plot(wavelengths, out.init_fit, 'k--', label='initial fit')
+    plt.plot(wavelengths,out.best_fit,label='best fit')
+    plt.xlabel('Wavelength (nm)')
+    plt.ylabel('Intensity')
+    plt.legend(loc=0)
+    
+    return np.min(out.best_fit)
+
 def fitspectra(binnedspectra,wavelengths,startfit,endfit,model,Debugmode=False):
 
     timeaverage = np.sum(binnedspectra,axis=1)
@@ -803,3 +834,128 @@ def Findtshift(Freq,Vpp,Voffset,calibcoeffs,macrocyclelist,dtmacro,matchrange=(5
         plt.plot(tlistforward,ylistforward)
         plt.plot(tlistbackward,ylistbackward)
     return optimumshift
+
+def MaxLikelihoodFunction(params,xdata,ydata,const,expterms): 
+    # max likelihood function for A*exp(-t/tau), needed in function MakLikelihoodFit
+    # params = [A,tau]
+    A = params[0:expterms]
+    tau = params[expterms:2*expterms]
+    model = const*np.ones(len(xdata))
+    for k in range(len(A)):
+        # print(A[k])
+        # print(xdata)
+        model+=A[k]*np.exp(-(xdata-xdata[0])/tau[k])
+    # # model = A1*np.exp(-(xdata-xdata[0])/tau1)+const
+    model [model <= 0] = 1e-10
+# #    A2 = params[2]
+# #    tau2 = params[2]
+    E = 0;
+    for i in range(len(xdata)):
+# # #        E = E + ydata[i]*np.log(A1*np.exp(-(xdata[i]-xdata[0])/tau1)+A2*np.exp(-(xdata[i]-xdata[0])/tau2)+const)-(A1*np.exp(-(xdata[i]-xdata[0])/tau1)+A2*np.exp(-(xdata[i]-xdata[0])/tau2)+const)
+# #         # E = E + ydata[i]*np.log(A1*np.exp(-(xdata[i]-xdata[0])/tau1)+const)-(A1*np.exp(-(xdata[i]-xdata[0])/tau1)+const)
+        E = E + ydata[i]*np.log(model[i])-(model[i])
+    return(-E) # This function needs to be MINIMIZED (because of the minus sign) to have the maximum likelihood fit!
+MaxLikelihoodFunction_c = nb.jit(nopython=True)(MaxLikelihoodFunction)
+
+def GetLifetime(microtimes,dtmicro,dtmacro,dtfit,tstart=-1,histbinmultiplier=1,ybg=0,plotbool=False,method='ML',expterms=1,timemax=0,axhandle='None'): 
+    # microtimes = microtimes array with photon events
+    # dtfit is the time interval considered for the fit [s], tstart [s] is the starting point of the fit within the histogram. If set to -1 it starts at the time with the highest intensity.
+    # histbinmultiplier is a multiplier. actual binwidth is given as histbinmultiplier*dtmicro[s]
+    # ybg is the background considered for the fit (CHECK UNITS!!). If set to -1 --> try to estimate background based on last bins. set to 0 --> no background subtraction
+    # plotbool: plot histogram with fit
+#    print('Chosen method is:' + method)
+    [ylist,xlist] = np.histogram(microtimes,int(dtmacro/(dtmicro*histbinmultiplier)),[0,int(dtmacro/dtmicro)])
+    tlist = (xlist[:-1]+0.5*(xlist[1]-xlist[0]))*dtmicro*1e9
+#    print(histbinmultiplier)
+    if timemax>0:
+      tlist=tlist[tlist<timemax]
+      lenylist=len(tlist)
+      ylist=ylist[0:lenylist]
+    istart = int(tstart/dtmicro) #find index of maximum element in ylist
+    if istart < 0:
+        istart = ylist.argmax()
+    iend = istart + int(dtfit/(dtmicro*histbinmultiplier))
+    if iend>len(tlist):
+        iend = len(tlist) 
+  
+    # get background (by simply looking at last ten data points) and substract from intensity data.
+    if ybg < 0:
+        ybg = np.mean(ylist[-100:]) # mean background per histogram bin bin of length
+   
+    if method == 'ML': #maximum likelihood exponential fit
+        [tau1fit,A1fit] = MaxLikelihoodFit(tlist,ylist,istart,iend,ybg,False,expterms)
+    elif method == 'ML_c': #maximum likelihood exponential fit
+        [tau1fit,A1fit] = MaxLikelihoodFit_c(tlist,ylist,istart,iend,ybg,False,expterms)
+    elif method == 'WLS': # weighted least squares fit
+        [taufit,Afit] = WeightedLeastSquareFit(tlist,ylist,istart,iend,ybg,plotbool=False)
+    else:
+        taufit = 0; Afit = 0;
+        print('Error: invalid fit method')
+    
+    if plotbool == True:
+        if axhandle==None:
+            plt.xlabel('time (ns)')
+            plt.ylabel('')
+            plt.semilogy(tlist,ylist,'.',tlist[istart:iend],np.sum(np.array([A1fit[k]*np.exp(-(tlist[istart:iend]-tlist[istart])/tau1fit[k])+ybg*(k<1) for k in range(expterms)]),0))
+            plt.semilogy([tlist[0],tlist[-1]],[ybg,ybg],'k--')
+            plt.show()
+        else:
+            plt.semilogy(tlist,ylist,'.',tlist[istart:iend],np.sum(np.array([A1fit[k]*np.exp(-(tlist[istart:iend]-tlist[istart])/tau1fit[k])+ybg*(k<1) for k in range(expterms)]),0))
+            plt.semilogy([tlist[0],tlist[-1]],[ybg,ybg],'k--')
+        print('Fitted lifetime:',tau1fit,'ns; Amax:',A1fit)
+
+    # if plotbool == True:
+    #     # yest = np.array([Aest[k]*np.exp(-(xdata[i]-xdata[0])/tauest[k])+bgcpb for i in range(len(xdata))])
+    #     yest = np.array([np.sum([A1fit[k]*np.exp(-(tlist[istart:iend]-tlist[istart])/tau1fit[k])+ybg*(k<1) for k in range(expterms)]) for i in range(len(xdata))])
+        
+    #     plt.figure()
+    #     plt.semilogy(tlist,ylist,'.',xdata,yest,[xdata[1],xdata[-1]],[bgcpb,bgcpb],'k--')
+    #     # plt.xlim([xdata[1],xdata[-1]])
+    #     plt.show()   
+    # Amax is the maximum y-value
+    Amax = np.max(ylist)
+        
+    return(tau1fit,A1fit,ybg,istart)  
+
+def MaxLikelihoodFit_c(tlist,ylist,istart,iend,bgcpb,plotbool=False,expterms=1):
+    ### Maximum likelihood routine to fit single exponential. Pro: Works also for small amount of data (single bins of 10ms!)
+    # tlist: x-axis values, here time in ns; ylist: y-axis values, here cts per tlist-bin; istart and iend: first and last element of tlist and ylist that are considered for the fit.
+
+    # check if istart and iend are good numbers
+    if istart<0 or istart>=len(ylist):
+        istart = 0
+        print('WARNING: adapted istart in MaxLikelihoodExpFit')
+    if iend<=istart or iend>len(ylist):
+        iend = len(ylist)
+        print('WARNING: adapted iend in MaxLikelihoodExpFit')
+
+    # shift t0 to t=0
+    ydata = ylist[istart:iend]
+    xdata = tlist[istart:iend]
+
+    # do calculations
+    initParams = [np.max(ydata)*np.ones(expterms), 25*np.ones(expterms)] #initial guess for A and tau
+    if expterms>1:
+        initParams[1][0]=initParams[1][1]/10 #Make first component fast
+    if expterms>2:
+        initParams[1][2]=initParams[1][1]/5 #Make third component slow
+    initParams = np.concatenate(initParams).ravel().tolist()
+    results = minimize(MaxLikelihoodFunction_c, initParams, args=(xdata,ydata,bgcpb,expterms),method='Nelder-Mead') # minimize the negative of the maxlikelihood function instead of maximimizing
+    Aest = results.x[0:expterms] # get results of fit, A
+    tauest = results.x[expterms:2*expterms] # get results of fit, tau
+
+#    if plotbool == True:
+#        yest = np.array([Aest*np.exp(-(xdata[i]-xdata[0])/tauest)+bgcpb for i in range(len(xdata))])
+#        plt.semilogy(tlist,ylist,'.',xdata,yest,[xdata[1],xdata[-1]],[bgcpb,bgcpb],'k--')
+#        plt.show()        
+
+
+    if plotbool == True:
+        # yest = np.array([Aest[k]*np.exp(-(xdata[i]-xdata[0])/tauest[k])+bgcpb for i in range(len(xdata))])
+        yest = np.array([np.sum([Aest[k]*np.exp(-(xdata[i]-xdata[0])/tauest[k])+bgcpb*(k<1) for k in range(expterms)]) for i in range(len(xdata))])
+        plt.figure()
+        plt.plot(tlist,ylist,'.',xdata,yest,[xdata[1],xdata[-1]],[bgcpb,bgcpb],'k--')
+        plt.xlim([xdata[1],xdata[-1]])
+        plt.show()        
+        
+    return(tauest,Aest)
