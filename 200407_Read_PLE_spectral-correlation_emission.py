@@ -44,24 +44,6 @@ sys.path.append('E:/Martijn/ETH/scripts/github/martijn_own_github/repoo/martijn_
 import Read_PLE_functions_Martijn as rplm
 InVoltagenew_c=nb.jit(nopython=True)(rplm.InVoltagenew)
 
-#%%
-
-def histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram):
-#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
-    binnedintensities = np.zeros((histogram,len(rawdata)))
-    binnedwavelengths = np.zeros((histogram,len(rawdata)))
-    
-    for i in range(len(rawdata)-1):
-        originaldataphotonlistindex = np.argmin(np.abs(originaldata-rawdata[i]))
-        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*data[19][rawdata[i]:originaldata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
-        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-        binnedwavelengths[:,i]= wavelengthstempavg
-        binnedintensities[:,i]=intensitiestemp
-        
-        
-    return binnedintensities,binnedwavelengths
-
-
 
 # In[25]:
 
@@ -74,13 +56,14 @@ Debugmode=False     #Set to true to make plots in the individual sections of the
 basefolders={'DESKTOP-BK4HAII':'C:/Users/rober/Documents/Doktorat/Projects/SingleParticle_PLE/Andor Spectrometer/',
              'HP_Probook':'E:/Martijn/ETH/results/',
              'mavt-omel-w004w':'E:/LAB_DATA/Robert/'} #dictionary which base folder to use on which computer. For you this probably would be everything until 
-folder = basefolders[socket.gethostname()]+'20200630_CdSe_cryo_HR2/'
+folder = basefolders[socket.gethostname()]+'20200520_PLE_noCdS_RT_cryo/'
 
-filename = 'HR2_QD7_9p734MHz_200Hz_260mVpp_n20mVoff_ND0'
+filename = 'HR63_5p5MHz_200Hz_240mVpp_off0mV_QD3_cryo_withcamera'
 
-settingsfile= filename+'_settings'
-HHsettings=rpl.load_obj(settingsfile, folder )
-# HHsettings={}
+
+# settingsfile= filename+'_settings'
+# HHsettings=rpl.load_obj(settingsfile, folder )
+HHsettings={}
 
 # Texp = 240 # total time [s] of measurements
 binwidth = 0.01 # width of time bins to create intensity trace [s]
@@ -94,7 +77,8 @@ binwidth = 0.01 # width of time bins to create intensity trace [s]
 # taubinlist = np.zeros(nrtbins-1,dtype=float) # init list to save lifetimes of each time bin (binwidth)
 # intbinlist = np.zeros(nrtbins-1,dtype=float) # init list to save intensity per bin
 plt.figure()
-data = rpl.ImportT3(folder + filename + '.out',HHsettings)
+# data = rpl.ImportT3(folder + filename + '.out',HHsettings)
+data = rpl.ImportT3(folder + filename + '.ptu',HHsettings)
 # data = rpl.ImportT3(folder + filename + '.ptu',HHsettings)
 Texp = round(data[8]*data[1]*1024,0) # macrotime values can store up to 2^10 = 1024 before overflow. overflows*1024*dtmacro gives experiment time [s]
 print('averaged cps on det0 and det1:',np.array(data[6:8])/Texp)
@@ -119,27 +103,42 @@ if Debugmode==True:
     plt.xlabel('Voltage')
     plt.ylabel('Excitation wavelength (nm)')
     plt.plot(Voltage,calibcoeffs[1]+Voltage*calibcoeffs[0],Voltage,Wavelength_calib,'*')
-    
     plt.legend(['Linear Fit','Measurement'])
+    
 Vpp=float(filename.split('mVpp_')[0].split('_')[-1])
 Freq=float(filename.split('Hz_')[-2])
-if filename.split('mVoff')[0].split('Vpp_')[-1].startswith('n'):
-    Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1].split('n')[-1])
-else:
-    Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1])
+Voffset=0
+# if filename.split('mVoff')[0].split('Vpp_')[-1].startswith('n'):
+#     Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1].split('n')[-1])
+# else:
+#     Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1])
 # Voffset=0
 matchrange=(500,590)
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,(-6e-4,-2e-4)) #coarse sweep
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,(tshift-1e-5,tshift+1e-5),Debugmode=True)
 
-    
+#%% Excitation wavelength camera data
+#seems to match quite well. Can also do later a correction for this, but it would only matter like 0.5-1 nm or so.
+file1='backref_9p734MHz_0Hz_0mVpp_20mVoff_ND0.asc'
+backref1=rpl.importASC(folder+file1)  
+# plt.figure()
+# plt.imshow(backref1[0],extent=[0,len(backref1[0]),backref1[1][0],backref1[1][-1]])
 
+max1=print(backref1[1][np.unravel_index(backref1[0].argmax(),backref1[0].shape)[1]])
+print(calibcoeffs[1]+calibcoeffs[0]*float(file1.split('mVoff')[0].split('_')[-1]))
 
+file1='backref_9p734MHz_0Hz_0mVpp_60mVoff_ND0.asc'
+backref1=rpl.importASC(folder+file1)  
+# plt.figure()
+# plt.imshow(backref1[0],extent=[0,len(backref1[0]),backref1[1][0],backref1[1][-1]])
+
+max1=print(backref1[1][np.unravel_index(backref1[0].argmax(),backref1[0].shape)[1]])
+print(calibcoeffs[1]+calibcoeffs[0]*float(file1.split('mVoff')[0].split('_')[-1]))
 #%% laser intensity corrected
     #done by sweeping laser spectrum over camera and divide QD em spectrum over normalized reference spectrum
 reffile = str(filename.split('MHz')[0].split('_')[-1])
 reffolder = folder
-calibspec = rpl.importASC(reffolder+'backref_9p734MHz_200Hz_500mVpp_60mVoff_ND0.asc')
+calibspec = rpl.importASC(reffolder+'backref_1p95MHz_200Hz_340mVpp_off130mV_SP30deg.asc')
 # calibspec = rpl.importASC(reffolder+'backref'+str(reffile)+'MHz_200Hz_500mVpp_60mVoffset.asc')
 
 # plt.figure()
@@ -177,7 +176,7 @@ plt.ylabel('Intensity')
 #     plt.figure()
 #     plt.plot(Wavelengthspec,interprefspec(ylistspec))
 # #check whether this excitation regime actually extends in the excitation spectrum of the regime you are interested in.
-wavelengthrangemin,wavelengthrangemax = 500,560
+wavelengthrangemin,wavelengthrangemax = 400,590
 wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
 # wavelengthrange = matchrange
 histogrambin=247
@@ -595,11 +594,12 @@ for j in range(len(taus)):
 
 
 rawdata = data[25]
-originaldata= data[25]
+originaldata= data[19]
+selecteddata=data[25]
 wavelengthrange = matchrange
 wavelengthrange = (450,590)
 histogram = 300
-excitationdata = histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram)
+excitationdata = rplm.histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram)
 # excitationdata = histogramexcitationspectranorm(rawdata,originaldata,wavelengthrange,histogram,interprefspec)
 
 # for j in range(len(excitationdata[0][0])):
@@ -1645,17 +1645,13 @@ fitdata=rpl.GetLifetime(microtimesblue,dtmicro,dtmacro,250e-9,tstart=-1,plotbool
 #%% Lifetime vs Intensity
 # MaxLikelihoodFunction_c = nb.jit(nopython=True)(MaxLikelihoodFunction)
 macrotimesin=data[3]
-# macrotimesin=data[25]
 microtimesin=data[2]
-# microtimemax = 8
-
-# macrotimesincropped=macrotimesin
-#microtimesin=microtimesblue
-#macrotimesin=macrotimesblue
-#macrotimescyclein=macrotimescycleblue
 binwidth=0.01
 macrolimits = rpl.HistPhotons(macrotimesin*dtmacro,binwidth,Texp)
+
+# macrotimesin=data[25]
 # macrolimits=macrotimesin
+
 limits=macrolimits
 taulist=np.zeros(len(limits)-1)
 
@@ -1945,7 +1941,43 @@ plt.ylim(-1,1)
 # plt.plot(exspecB[0],(exspecB[1]-np.min(exspecB[1]))/np.sum(exspecB[1][20:100]-np.min(exspecB[1]))-(exspecA[1]-np.min(exspecA[1]))/np.sum(exspecA[1][20:100]-np.min(exspecA[1])))
 
 #%% fit absorption curve
+#at the moment it does not work and I do not know why. Based it a bit on the cubic background david wrote in his paper, but i can imagine that it is highly dependent on the starting positions
+from lmfit.models import PolynomialModel
+from lmfit import Model
+# plt.figure()
+# plt.plot(exspecex[0],exspecex[1]/interprefspec(exspecex[0]))
+spectra=exspecex[1]/interprefspec(exspecex[0])
+testwav=exspecex[0]
+def func(x, a, b, c, d):
+    return a + b * x + c * x ** 2 + d * x ** 3
+
+lormod = LorentzianModel(prefix='Lor_')
+pars = lormod.guess(spectra, x=testwav)
+pars['Lor_center'].set(value=480)
+lormod2=LorentzianModel(prefix='Lor2_')
+pars.update(lormod2.make_params())
+pars['Lor2_center'].set(value=430)
+lormod3=LorentzianModel(prefix='Lor3_')
+pars.update(lormod3.make_params())
+pars['Lor3_center'].set(value=520)
+lormod4=LorentzianModel(prefix='Lor4_')
+pars.update(lormod4.make_params())
+pars['Lor4_center'].set(value=560)
+pmodel = Model(func)
+pars.update(pmodel.make_params())
+
+bkg = ConstantModel(prefix='contst')
+pars.update(bkg.make_params())
+bkg2 = LinearModel(prefix='lin')
+pars.update(bkg2.make_params())
+
+mod=lormod+lormod2+lormod3+lormod4+pmodel
+init = mod.eval(pars, x=testwav)
+out = mod.fit(spectra, pars, x=testwav)
+
+
 plt.figure()
+plt.plot(testwav,out.best_fit)
 plt.plot(exspecex[0],exspecex[1]/interprefspec(exspecex[0]))
 
 
