@@ -62,20 +62,7 @@ def histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram):
     return binnedintensities,binnedwavelengths
 
 
-def histogramexcitationspectranorm(rawdata,originaldata,wavelengthrange,histogram,interprefspec):
-#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
-    binnedintensities = np.zeros((histogram,len(rawdata)))
-    binnedwavelengths = np.zeros((histogram,len(rawdata)))
-    
-    for i in range(len(rawdata)-1):
-        originaldataphotonlistindex = np.argmin(np.abs(originaldata-rawdata[i]))
-        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*data[19][rawdata[i]:originaldata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
-        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-        binnedwavelengths[:,i]= wavelengthstempavg
-        binnedintensities[:,i]=intensitiestemp/interprefspec(wavelengthstempavg)
-        
-        
-    return binnedintensities,binnedwavelengths
+
 # In[25]:
 
 
@@ -87,11 +74,9 @@ Debugmode=False     #Set to true to make plots in the individual sections of the
 basefolders={'DESKTOP-BK4HAII':'C:/Users/rober/Documents/Doktorat/Projects/SingleParticle_PLE/Andor Spectrometer/',
              'HP_Probook':'E:/Martijn/ETH/results/',
              'mavt-omel-w004w':'E:/LAB_DATA/Robert/'} #dictionary which base folder to use on which computer. For you this probably would be everything until 
-folder = basefolders[socket.gethostname()]+'20200625_PM26_RT/'
+folder = basefolders[socket.gethostname()]+'20200630_CdSe_cryo_HR2/'
 
-filename = 'PM26_polystyrene_QD2_9p734MHz_200Hz_500mVpp_80mVoff_ND1_bluerfilters_withcamera'
-
-
+filename = 'HR2_QD7_9p734MHz_200Hz_260mVpp_n20mVoff_ND0'
 
 settingsfile= filename+'_settings'
 HHsettings=rpl.load_obj(settingsfile, folder )
@@ -116,7 +101,7 @@ print('averaged cps on det0 and det1:',np.array(data[6:8])/Texp)
 print('experimental time in s:',Texp)
 [microtimes0,microtimes1,times0,times1,dtmicro,dtmacro,decaytlist,decayylist] = rpl.ShiftPulsedData(data[2],data[4],data[3],data[5],data[0],data[1]) #decaytlist and decayylist are the two variables you want to check for the modulation trace
 # MaxLikelihoodFunction_c = nb.jit(nopython=True)(rpl.MaxLikelihoodFunction)
-lifetime=rpl.GetLifetime(microtimes0,dtmicro,dtmacro,dtfit=400e-9,tstart=-1,histbinmultiplier=1,ybg=-1,plotbool=True,expterms=1,method='ML_c')
+lifetime=rpl.GetLifetime(microtimes0,dtmicro,dtmacro,dtfit=400e-9,tstart=-1,histbinmultiplier=1,ybg=-1,plotbool=True,expterms=2,method='ML_c')
 
 limits0 = rpl.HistPhotons(times0*dtmicro,binwidth,Texp) #gives index of first photon of det0 in each bin
 limits1 = rpl.HistPhotons(times1*dtmicro,binwidth,Texp)
@@ -138,7 +123,10 @@ if Debugmode==True:
     plt.legend(['Linear Fit','Measurement'])
 Vpp=float(filename.split('mVpp_')[0].split('_')[-1])
 Freq=float(filename.split('Hz_')[-2])
-Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1])
+if filename.split('mVoff')[0].split('Vpp_')[-1].startswith('n'):
+    Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1].split('n')[-1])
+else:
+    Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1])
 # Voffset=0
 matchrange=(500,590)
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,(-6e-4,-2e-4)) #coarse sweep
@@ -151,7 +139,7 @@ tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,
     #done by sweeping laser spectrum over camera and divide QD em spectrum over normalized reference spectrum
 reffile = str(filename.split('MHz')[0].split('_')[-1])
 reffolder = folder
-calibspec = rpl.importASC(reffolder+'backref_9p734MHz_200Hz_500mVpp_80mVoff.asc')
+calibspec = rpl.importASC(reffolder+'backref_9p734MHz_200Hz_500mVpp_60mVoff_ND0.asc')
 # calibspec = rpl.importASC(reffolder+'backref'+str(reffile)+'MHz_200Hz_500mVpp_60mVoffset.asc')
 
 # plt.figure()
@@ -189,9 +177,9 @@ plt.ylabel('Intensity')
 #     plt.figure()
 #     plt.plot(Wavelengthspec,interprefspec(ylistspec))
 # #check whether this excitation regime actually extends in the excitation spectrum of the regime you are interested in.
-wavelengthrangemin,wavelengthrangemax = 500,593
+wavelengthrangemin,wavelengthrangemax = 500,560
 wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
-wavelengthrange = matchrange
+# wavelengthrange = matchrange
 histogrambin=247
 [excspec,excspecwavtemp] = np.histogram(InVoltagenew_c(dtmacro*data[19],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogrambin,range=wavelengthrange)
 excspecwav = [excspecwavtemp[:-1]+(excspecwavtemp[1]-excspecwavtemp[0])/2]
@@ -207,6 +195,10 @@ plt.plot(excspecwav[0],excspeccorr[0])
 plt.title('Laser corrected') 
 plt.xlabel('Excitation wavelength (nm)')
 plt.ylabel('Intensity')
+
+
+    
+    
 #%% Generate binned excitation spectra
 #this generates part of unbinned excitation spectra. It does not resolve for forward and backward scan
 binning = int(Texp/2) #binning is in units of seconds (s)
@@ -354,6 +346,7 @@ if len(emissionspec[0])==1:
     wavelengths = wavelengthsinit
     timeaverage= np.mean(emissionspec[0],axis=2)
     Ybackground=rplm.fittimeaverage(timeaverage.ravel(),wavelengths,'Lor') #done to find the background
+    plt.title('Fit used for background estimation')
     Yfiltered = emissionspec[0][0]-Ybackground
     # wavelengths = wavelengthsinit
     numberypixels=1
@@ -604,13 +597,13 @@ for j in range(len(taus)):
 rawdata = data[25]
 originaldata= data[25]
 wavelengthrange = matchrange
-wavelengthrange = (430,590)
+wavelengthrange = (450,590)
 histogram = 300
 excitationdata = histogramexcitationspectra(rawdata,originaldata,wavelengthrange,histogram)
 # excitationdata = histogramexcitationspectranorm(rawdata,originaldata,wavelengthrange,histogram,interprefspec)
 
-for j in range(len(excitationdata[0][0])):
-    excitationdata[0][:,j] = excitationdata[0][:,j]-np.mean(excitationdata[0][:,j])
+# for j in range(len(excitationdata[0][0])):
+#     excitationdata[0][:,j] = excitationdata[0][:,j]-np.mean(excitationdata[0][:,j])
 
 # maxexcitation = np.max(excitationdata[0])    
 vmax=np.max(excitationdata[0])
@@ -734,11 +727,12 @@ for j in range(len(Yfiltered[0])):
     
 if Debugmode==True:
     fig,ax=plt.subplots(2,1,sharex=True,sharey=False,constrained_layout=True) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
-    emwavelrange=(600,640)
+    emwavelrange=(595,630)
     emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
     timeminplot=0
     timemaxplot=-1
     vmax=2000
+    vmax=np.max(Yfiltered)
     # plt.figure()
     # plt.imshow(Yfiltered[emwavelindices[0]:emwavelindices[1],timeminplot:timemaxplot],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths[emwavelindices[0]:emwavelindices[1]]),np.min(wavelengths[emwavelindices[0]:emwavelindices[1]])],aspect='auto')#,vmax=1000)
     # im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)],aspect='auto')
@@ -759,9 +753,18 @@ if Debugmode==True:
     ax[1].invert_yaxis()
     # plt.tight_layout()
     
-    #done to visualize same plot but just under Yfiltered indexes
-    fig,ax=plt.subplots(2,1,sharex=True,sharey=False) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
-    im0=ax[0].imshow(Yfiltered,extent=[0,len(Yfiltered[0]),np.max(wavelengths),np.min(wavelengths)],aspect='auto')
+    
+    fig,ax=plt.subplots(2,1,sharex=True,sharey=False,constrained_layout=True) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
+    # emwavelrange=(600,640)
+    emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
+    timeminplot=0
+    timemaxplot=-1
+    vmax=2000
+    vmax=np.max(Yfiltered)
+    # plt.figure()
+    # plt.imshow(Yfiltered[emwavelindices[0]:emwavelindices[1],timeminplot:timemaxplot],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths[emwavelindices[0]:emwavelindices[1]]),np.min(wavelengths[emwavelindices[0]:emwavelindices[1]])],aspect='auto')#,vmax=1000)
+    # im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)],aspect='auto')
+    im0=ax[0].imshow(Yfiltered[emwavelindices[0]:emwavelindices[1],:],extent=[0,len(Yfiltered[0]),np.max(wavelengths[emwavelindices[0]:emwavelindices[1]]),np.min(wavelengths[emwavelindices[0]:emwavelindices[1]])],aspect='auto')
     # im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)])
     ax[0].set_ylabel('Emission wavelength (nm)')
     ax[0].set_xlabel('Index')
@@ -769,21 +772,22 @@ if Debugmode==True:
     ax[0].xaxis.set_tick_params(which='both', labelbottom=True)
     ax[0].invert_yaxis()
     fig.colorbar(im0,ax=ax[0])
-    im1=ax[1].imshow(excitationdata[0],extent=[0,len(Yfiltered[0]),np.max(excitationdata[1]),np.min(excitationdata[1][excitationdata[1]>0])],aspect='auto',vmin=0)
+    im1=ax[1].imshow(excitationdata[0],extent=[0,len(Yfiltered[0]),np.max(excitationdata[1]),np.min(excitationdata[1][excitationdata[1]>0])],aspect='auto')
     # im1=ax[1].imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(excitationdata[1]),np.min(excitationdata[1][excitationdata[1]>0])])
     ax[1].set_ylabel('Excitation wavelength (nm)')
     ax[1].set_xlabel('Index')
     ax[1].set_title('Excitation')
     fig.colorbar(im1,ax=ax[1])
     ax[1].invert_yaxis()
-    plt.tight_layout()
+   
+
 #select excitation spectra based on trigger events from first photons in the emission cycle
 #can do excitation emission correlation only on those. Forward and backward sweep combined
 
 #%% excitation and emission correlation
 # taus=[0,1,2,5,10,30,100]
 # taus=[1,5,8,10,15]
-taus=[1,5,8,10,20]
+# taus=[1,5,8,10,20]
 taus=[0,1]
 # taus=[30,50]
 # taus=[0,1,2]
@@ -797,21 +801,23 @@ plot = 'corr'
 # Emissiondata2 = binnedintensities[:,0:100]
 emwavelrange=(500,540)
 emwavelrange=(600,640)
+emwavelrange=(595,630)
 # emwavelrange=(np.min(wavelengths),np.max(wavelengths))
 emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
 
 emissionwavelengths = wavelengths[emwavelindices[0]:emwavelindices[1]]
 
 
-excwavelrange=(500,590)
+excwavelrange=(430,590)
+excwavelrange=(470,570)
 excwavelindices=(np.argmin(np.abs(excitationdata[1][:,1]-excwavelrange[0])),np.argmin(np.abs(excitationdata[1][:,1]-excwavelrange[1])))
 
 excitationwavelengths = excitationdata[1][excwavelindices[0]:excwavelindices[1],1]
 
-limlow = 3000
-limhigh = 4000
+limlow = 200
+limhigh = 500
 Excitationdata = excitationdata[0][excwavelindices[0]:excwavelindices[1],limlow:limhigh]
-Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]
+Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]-np.min(Yfiltered)
 
 
 # emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Excitationdata,Emissiondata,wavelengths,binnedwavelengths[:,0],taus=taus,plot=plot)
@@ -819,6 +825,7 @@ Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]
 # most applicable to excitation and emission correlation
 
 excemmcovariance,excemmnormalization,excemmcorrelation = rplm.pearsoncorrelation(Emissiondata,Excitationdata,excitationwavelengths,emissionwavelengths,taus=taus,plot=plot)
+excemmcovariance,excemmnormalization,excemmcorrelation = rplm.spectralcorrelation(Emissiondata,Excitationdata,excitationwavelengths,emissionwavelengths,taus=taus,plot=plot)
 # excitationcovariance,excitationnormalization,excitationcorrelation = rplm.pearsoncorrelation(Excitationdata,Excitationdata,excitationwavelengths,excitationwavelengths,taus=taus,plot=plot)
 # emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Emissiondata,emissionwavelengths,emissionwavelengths,taus=taus,plot=plot)
 
@@ -1038,11 +1045,11 @@ if Debugmode==True:
 
 #%% G2
 # MakeG2_c=nb.jit(nopython=True)(rpl.MakeG2)
-plt.figure()
-g2=rpl.MakeG2(times0,times1,dtmicro,g2restime=dtmicro*4,nrbins=1000)
+# plt.figure()
+g2=rplm.MakeG2(times0,times1,dtmicro,g2restime=dtmicro*4,nrbins=1000)
 
-plt.figure()
-plt.plot(g2[0],g2[1])
+# plt.figure()
+# plt.plot(g2[0],g2[1])
 
 #%%
 histsettings=(440,600,3)
@@ -1521,6 +1528,7 @@ plt.title(namelist[0])
 #%% Excitation resolved decay
 plotrange=[500,590]
 plotrange=matchrange
+plotrange=excwavelrange
 plt.figure()
 mtimelims=np.array([0,30])
 binning=1
@@ -1675,7 +1683,7 @@ plt.show()
 for tbinnr in tqdm(range(len(limits)-1)):
     microtimes = microtimesin[limits[tbinnr]:limits[tbinnr+1]]
 
-    [taulist[tbinnr],Alist[tbinnr],ybglist[tbinnr],buff[tbinnr]]=rpl.GetLifetime(microtimes,dtmicro,dtmacro,300e-9,tstart=lifetime[3]*dtmicro,histbinmultiplier=1,ybg=lifetime[2]*binwidth/Texp,plotbool=False,expterms=1,method='ML_c') 
+    # [taulist[tbinnr],Alist[tbinnr],ybglist[tbinnr],buff[tbinnr]]=rpl.GetLifetime(microtimes,dtmicro,dtmacro,300e-9,tstart=lifetime[3]*dtmicro,histbinmultiplier=1,ybg=lifetime[2]*binwidth/Texp,plotbool=False,expterms=1,method='ML_c') 
     # lifetimetot=rpl.GetLifetime(microtimes,dtmicro,dtmacro,300e-9,tstart=lifetime[3]*dtmicro,histbinmultiplier=1,ybg=lifetime[2]*binwidth/Texp,plotbool=False,expterms=2,method='ML_c') 
     # [taulist1[tbinnr],taulist2[tbinnr],Alist1[tbinnr],Alist2[tbinnr],ybglist[tbinnr],buff[tbinnr]]=[lifetimetot[0][0],lifetimetot[0][1],lifetimetot[1][0],lifetimetot[1][1],lifetimetot[2],lifetimetot[3]]
     tauav[tbinnr]=(np.mean(microtimes)-lifetime[3])*dtmicro*1e9-1
@@ -1941,6 +1949,45 @@ plt.figure()
 plt.plot(exspecex[0],exspecex[1]/interprefspec(exspecex[0]))
 
 
+
+#%% Plot FLID map
+plt.figure()
+plt.hist2d(tauav,photonspbin,(50,int(np.max(photonspbin))),range=[[0,50],[0,np.max(photonspbin)]],norm=mcolors.LogNorm())
+plt.title('FLID map')
+plt.ylabel('Counts per bin')
+plt.ylabel('Counts per '+str(int(binwidth*1000))+' ms bin')
+plt.xlabel('Lifetime (ns)')
+plt.colorbar()
+
+#plt.plot(np.arange(0,50),np.arange(0,50)*505/27+8,'w')
+
+#%% postselect on intensities and lifetimes
+taumin=10
+taumax=25
+Imin=250
+# Imin=150
+Imax=400
+# Imax=250
+
+test=np.where((taumin<tauav)&(tauav<taumax)&(Imin<photonspbin)&(photonspbin<Imax))
+# Ilist=np.where(Ilisttemp)
+# plt.figure()
+# plt.plot(tauav[test])
+rawdata=np.asarray(test).ravel()
+selecteddata=limits
+originaldata=data[19]
+wavelengthrange=matchrange
+histogram=200
+
+testdata=rplm.histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram)
+
+plt.figure()
+plt.plot(testdata[1][:,1],np.sum(testdata[0],axis=1))
+plt.title('Imin='+str(Imin)+'. Imax='+str(Imax))
+plt.xlabel('Excitaiton wavelength')
+plt.ylabel('Intensity')
+
+# plt.imshow(testdata[0])
 #%% Lifetime correlation
 # this idea is based on not using the GetLifeTime function to generate lifetimes, but instead make a 2D correlation map with the observed microtime (and macrotime), separated by a time interval of dT
 
@@ -2026,16 +2073,6 @@ plt.ylabel('Occurence')
 #simcounts=np.random.poisson(lam=40,size=100)
 #plt.hist(simcounts,int(np.max(simcounts))+1,(0,np.max(simcounts)))
 #plt.ylim([1000,1600])
-#%% Plot FLID map
-plt.figure()
-plt.hist2d(tauav,photonspbin,(50,int(np.max(photonspbin))),range=[[0,50],[0,np.max(photonspbin)]],norm=mcolors.LogNorm())
-plt.title('FLID map')
-plt.ylabel('Counts per bin')
-plt.ylabel('Counts per '+str(int(binwidth*1000))+' ms bin')
-plt.xlabel('Lifetime (ns)')
-plt.colorbar()
-
-#plt.plot(np.arange(0,50),np.arange(0,50)*505/27+8,'w')
 
 #%% Intensity limits
 limitex=180

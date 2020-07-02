@@ -67,6 +67,32 @@ def fittimeaverage(timeaverage,wavelengths,model):
     
     return np.min(out.best_fit)
 
+
+# def fitmultiple(binnedspectra,wavelenghts,model,parameters,guesses):
+#     if model=='Gauss':
+#         lormod = GaussianModel(prefix='Gauss_')
+#     elif model=='Lor':
+#         lormod = LorentzianModel(prefix='Lor_')
+#     elif model=='Voigt':
+#         lormod = VoigtModel(prefix='Voigt_')
+        
+    
+#     pars = lormod.guess(timeaverage, x=wavelengths)
+    
+#     for j in range(parameters-1):
+#         pars.update() = lormod.guess(timeaverage, x=wavelengths)
+#         modtemp=
+#         # mod
+        
+#     constmod = ConstantModel(prefix='Const_') 
+    
+#     pars.update(constmod.make_params())
+    
+#     mod = lormod + constmod
+    
+#     init = mod.eval(pars, x=wavelengths)
+#     out = mod.fit(timeaverage, pars, x=wavelengths)   
+        
 def fitspectra(binnedspectra,wavelengths,startfit,endfit,model,Debugmode=False):
 
     timeaverage = np.sum(binnedspectra,axis=1)
@@ -229,11 +255,11 @@ def spectralcorrelation(spectra1,spectra2,wavelengthsspectra1,wavelengthsspectra
 
 
 
-    covariance = np.zeros((len(taus),len(spectra1),len(spectra1))) #saves the covariances, correlations for different taus
-    normalization = np.zeros((len(taus),len(spectra1),len(spectra1)))
-    correlationtemp = np.zeros((len(taus),len(spectra1),len(spectra1)))
+    covariance = np.zeros((len(taus),len(spectra1),len(spectra2))) #saves the covariances, correlations for different taus
+    normalization = np.zeros((len(taus),len(spectra1),len(spectra2)))
+    correlationtemp = np.zeros((len(taus),len(spectra1),len(spectra2)))
     normlambda1 = np.zeros((len(taus),len(spectra1)))
-    normlambda2 = np.zeros((len(taus),len(spectra1)))
+    normlambda2 = np.zeros((len(taus),len(spectra2)))
             
     for i in tqdm(range(len(taus))):
         tau = taus[i]
@@ -241,10 +267,10 @@ def spectralcorrelation(spectra1,spectra2,wavelengthsspectra1,wavelengthsspectra
             covariance[i] += np.outer(spectra1[:,t],spectra2[:,t+tau])
             normlambda1[i,:] += spectra1[:,t]
             normlambda2[i,:] += spectra2[:,t+tau]
-        normalization[i] = np.outer(normlambda1[i],normlambda2[i])*len(spectra1[0])+1 #the idea of the +1 was simply having to many dark counts which are averaged out and resulted in almost division by 0 errors. Nevertheless this also does not seem to work really properly actually.
+        normalization[i] = np.outer(normlambda1[i],normlambda2[i])*len(spectra1[0]) #the idea of the +1 was simply having to many dark counts which are averaged out and resulted in almost division by 0 errors. Nevertheless this also does not seem to work really properly actually.
         correlationtemp[i] = np.divide(covariance[i],normalization[i])
     
-    correlation = np.zeros((len(taus),len(spectra1),len(spectra1))) 
+    correlation = np.zeros((len(taus),len(spectra1),len(spectra2))) 
     #here I use the correction for the decaying component in the spectra. Basically, due to non-overlapping stuff this creates a worse correlation than actually true. In order to circumvent that, either the data along the wavelength axes should be increased, or you have to do some correction (which are the lines below)
     for i in tqdm(range(len(taus))):
         tau = taus[i]
@@ -332,7 +358,7 @@ def spectralcorrelation(spectra1,spectra2,wavelengthsspectra1,wavelengthsspectra
     return covariance, normalization, correlation  
   
 
-def pearsoncorrelation(spectra1,spectra2,wavelengthsspectra1,wavelengthsspectra2,taus,plot):
+def pearsoncorrelation(spectra1,spectra2,wavelengthsspectra1,wavelengthsspectra2,taus,plot='None'):
     """
     
 
@@ -796,6 +822,8 @@ def InVoltagenew(t,Freq,VPP,VOffset,tshift):
     InVoltage=(VPP/2*t/(Period/4)+VOffset)*Bool1+(VPP/2-VPP/2*(t-Period/4)/(Period/4)+VOffset)*Bool2+(-VPP/2+VPP/2*(t-3*Period/4)/(Period/4)+VOffset)*Bool3
     return(InVoltage)
 
+InVoltagenew_c=nb.jit(nopython=True)(InVoltagenew)
+
 def Findtshift(Freq,Vpp,Voffset,calibcoeffs,macrocyclelist,dtmacro,matchrange=(500,570),shiftrange=(-6e-4,-2e-4), histbinnumber = 100,steps=30,Debugmode=False):
     InVoltagenew_c=nb.jit(nopython=True)(InVoltagenew) #compile to C to speed it up
     threshlow=1/Freq/4
@@ -959,3 +987,101 @@ def MaxLikelihoodFit_c(tlist,ylist,istart,iend,bgcpb,plotbool=False,expterms=1):
         plt.show()        
         
     return(tauest,Aest)
+
+def histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram):
+#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
+#selecteddata is the index of the ones interested in the firstphotons listed
+#originaldata is all the photons collected
+        
+    binnedintensities = np.zeros((histogram,len(rawdata)))
+    binnedwavelengths = np.zeros((histogram,len(rawdata)))
+    
+    for i in range(len(rawdata)-1):
+        originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
+        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*originaldata[rawdata[i]:selecteddata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
+        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
+        binnedwavelengths[:,i]= wavelengthstempavg
+        binnedintensities[:,i]=intensitiestemp
+     
+        
+    return binnedintensities,binnedwavelengths
+
+
+
+def MakeG2(times0,times1,dtmicro,g2restime=64e-11*20,nrbins=200):
+    i0=0
+    i1=0
+    lim1=0
+    g2 = np.zeros(2*nrbins)
+    #g2B = np.zeros(2*nrbins)
+    #g2C = np.zeros(2*nrbins)
+    #blindB = 2e-9
+    #blindC = 5e-9
+
+    g2res = g2restime/dtmicro #transform g2restime [s] to g2res [microtime units]
+    
+    g2tlist = np.arange(-g2res*dtmicro*(nrbins-0.5),g2res*dtmicro*nrbins,g2restime)*1e9
+    #blindB = blindB/tmicro
+    #blindC = blindC/tmicro
+
+    # correlate det0 with det1 (positive time differences)
+    for i0 in tqdm(range(len(times0))):
+        t0 = times0[i0]
+        i1 = 0
+        q = 0
+        while q == 0: 
+            if lim1 + i1 < len(times1): # check if we've already reached end of photon stream on det1
+                dt = times1[lim1+i1]-t0 
+                if dt < 0: # find index lim1 of first photon on det1 that came after photon i0 on det0
+                    lim1 = lim1 + 1
+                else:
+                    binnr = int(dt/g2res) # calculate binnr that corresponds to dt
+                    if binnr < nrbins: # check if time difference is already large enough to stop correlation
+                        g2[nrbins + binnr] += 1 # increase counter in corresponding bin by one
+                        #if microtimes0[i0] > blindB and microtimes1[lim1+i1] > blindB:poi
+                            #g2B[nrbins + binnr] += 1
+                        #if microtimes0[i0] > blindC and microtimes1[lim1+i1] > blindC:
+                            #g2C[nrbins + binnr] += 1
+                        i1 = i1 + 1 # look at next photon on det1
+                    else:
+                        q = 1 # dt larger than maximum correlation width. stop. 
+            else:
+                q = 1 # end of photon stream on det1 reached. stop.
+
+    # correlate det1 with det0 (positive time differences)
+    lim1=0
+    for i0 in tqdm(range(len(times1))):
+        t0 = times1[i0]
+        i1 = 0
+        q = 0
+        while q == 0:
+            if lim1 + i1 < len(times0):
+                dt = times0[lim1+i1]-t0
+                if dt < 0:
+                    lim1 = lim1 + 1
+                else:
+                    binnr = int(dt/g2res)
+                    if binnr < nrbins:
+                        g2[nrbins - 1 - binnr] += 1
+                        #if microtimes0[lim1+i1] > blindB and microtimes1[i0] > blindB:
+                        #    g2B[nrbins - 1 - binnr] += 1
+                        #if microtimes0[lim1+i1] > blindC and microtimes1[i0] > blindC:
+                        #    g2C[nrbins - 1 - binnr] += 1
+                        i1 = i1 + 1
+                    else:
+                        q = 1
+            else:
+                q = 1
+                                
+    # g2tlist = np.arange(g2res*dtmicro*nrbins,g2restime)*1e9
+    plt.figure()
+    plt.plot(g2tlist,g2)
+    #plt.plot(g2tlist,g2B)
+    #plt.plot(g2tlist,g2C)
+    plt.title('g(2) correlation')
+    plt.xlabel('delay (ns)')
+    plt.ylabel('occurence (a.u.)')
+    plt.ylim([0,max(g2)])
+    plt.show()
+
+    return(g2tlist,g2,g2restime,nrbins)
