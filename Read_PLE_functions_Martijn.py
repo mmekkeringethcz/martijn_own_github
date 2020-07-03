@@ -1083,5 +1083,13 @@ def MakeG2(times0,times1,dtmicro,g2restime=64e-11*20,nrbins=200):
     plt.ylabel('occurence (a.u.)')
     plt.ylim([0,max(g2)])
     plt.show()
-
+    
+    
     return(g2tlist,g2,g2restime,nrbins)
+
+def Easyhist(rawdata,lowestbin,highestbin,numberofpoints):
+    plotpoints=numberofpoints+1
+    edges=np.linspace(lowestbin,highestbin,plotpoints)
+    wavelbins=np.linspace(lowestbin,highestbin,numberofpoints)
+    histdata=np.histogram(rawdata,bins=edges)
+    return wavelbins,histdata[0],edges
