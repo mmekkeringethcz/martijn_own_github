@@ -59,8 +59,7 @@ basefolders={'DESKTOP-BK4HAII':'C:/Users/rober/Documents/Doktorat/Projects/Singl
              'mavt-omel-w004w':'E:/LAB_DATA/Robert/'} #dictionary which base folder to use on which computer. For you this probably would be everything until 
 folder = basefolders[socket.gethostname()]+'20200630_CdSe_cryo_HR2/'
 
-filename = 'HR2_QD7_9p734MHz_200Hz_260mVpp_n20mVoff_ND0'
-
+filename = 'HR2_QD6_9p734MHz_200Hz_260mVpp_n20mVoff_ND0'
 
 settingsfile= filename+'_settings'
 HHsettings=rpl.load_obj(settingsfile, folder )
@@ -93,6 +92,8 @@ limits1 = rpl.HistPhotons(times1*dtmicro,binwidth,Texp)
 
 # make an intensity trace and find Imax
 inttrace = rpl.MakeIntTrace(limits0,limits1,binwidth,Texp)
+
+
 #%% Wavelength calibration
 Voltage=np.array([-80,-40,0,40,80])
 Wavelength_calib=np.array([578.6,560.2,541.5,523,504.9])
@@ -1048,7 +1049,7 @@ if Debugmode==True:
 #%% G2
 # MakeG2_c=nb.jit(nopython=True)(rpl.MakeG2)
 # plt.figure()
-g2=rplm.MakeG2(times0,times1,dtmicro,g2restime=dtmicro*4,nrbins=100)
+g2=rplm.MakeG2(times0,times1,dtmicro,g2restime=dtmicro*4,nrbins=1000)
 
 # plt.figure()
 # plt.plot(g2[0],g2[1])

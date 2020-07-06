@@ -1019,11 +1019,9 @@ def MakeG2(times0,times1,dtmicro,g2restime=64e-11*20,nrbins=200):
     #blindC = 5e-9
 
     g2res = g2restime/dtmicro #transform g2restime [s] to g2res [microtime units]
-    
-    g2tlist = np.arange(-g2res*dtmicro*(nrbins-0.5),g2res*dtmicro*nrbins,g2restime)*1e9
     #blindB = blindB/tmicro
     #blindC = blindC/tmicro
-
+    g2tlist = np.arange(-g2res*dtmicro*(nrbins-0.5),g2res*dtmicro*nrbins,g2restime)*1e9
     # correlate det0 with det1 (positive time differences)
     for i0 in tqdm(range(len(times0))):
         t0 = times0[i0]
@@ -1083,8 +1081,7 @@ def MakeG2(times0,times1,dtmicro,g2restime=64e-11*20,nrbins=200):
     plt.ylabel('occurence (a.u.)')
     plt.ylim([0,max(g2)])
     plt.show()
-    
-    
+
     return(g2tlist,g2,g2restime,nrbins)
 
 def Easyhist(rawdata,lowestbin,highestbin,numberofpoints):
