@@ -59,7 +59,7 @@ basefolders={'DESKTOP-BK4HAII':'C:/Users/rober/Documents/Doktorat/Projects/Singl
              'mavt-omel-w004w':'E:/LAB_DATA/Robert/'} #dictionary which base folder to use on which computer. For you this probably would be everything until 
 folder = basefolders[socket.gethostname()]+'20200630_CdSe_cryo_HR2/'
 
-filename = 'HR2_QD6_9p734MHz_200Hz_260mVpp_n20mVoff_ND0'
+filename = 'HR2_QD4_9p734MHz_200Hz_260mVpp_n20mVoff_ND0_meas4'
 
 settingsfile= filename+'_settings'
 HHsettings=rpl.load_obj(settingsfile, folder )
@@ -79,7 +79,7 @@ binwidth = 0.01 # width of time bins to create intensity trace [s]
 plt.figure()
 data = rpl.ImportT3(folder + filename + '.out',HHsettings)
 # data = rpl.ImportT3(folder + filename + '.ptu',HHsettings)
-# data = rpl.ImportT3(folder + filename + '.ptu',HHsettings)
+
 Texp = round(data[8]*data[1]*1024,0) # macrotime values can store up to 2^10 = 1024 before overflow. overflows*1024*dtmacro gives experiment time [s]
 print('averaged cps on det0 and det1:',np.array(data[6:8])/Texp)
 print('experimental time in s:',Texp)
@@ -110,10 +110,10 @@ if Debugmode==True:
 Vpp=float(filename.split('mVpp_')[0].split('_')[-1])
 Freq=float(filename.split('Hz_')[-2])
 Voffset=0
-if filename.split('mVoff')[0].split('Vpp_')[-1].startswith('n'):
-    Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1].split('n')[-1])
-else:
-    Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1])
+# if filename.split('mVoff')[0].split('Vpp_')[-1].startswith('n'):
+#     Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1].split('n')[-1])
+# else:
+#     Voffset=float(filename.split('mVoff')[0].split('Vpp_')[-1])
 # Voffset=0
 matchrange=(500,570)
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,(-6e-4,-2e-4)) #coarse sweep
@@ -140,7 +140,7 @@ print(calibcoeffs[1]+calibcoeffs[0]*float(file1.split('mVoff')[0].split('_')[-1]
     #done by sweeping laser spectrum over camera and divide QD em spectrum over normalized reference spectrum
 reffile = str(filename.split('MHz')[0].split('_')[-1])
 reffolder = folder
-calibspec = rpl.importASC(reffolder+'backref_9p734MHz_200Hz_500mVpp_60mVoff_ND0.asc')
+calibspec = rpl.importASC(reffolder+'backref_1p95MHz_200Hz_340mVpp_off130mV_SP30deg.asc')
 # calibspec = rpl.importASC(reffolder+'backref'+str(reffile)+'MHz_200Hz_500mVpp_60mVoffset.asc')
 
 # plt.figure()
@@ -461,7 +461,13 @@ else:
             plt.plot(wavelengths,Yfiltered[:,i])
 
 
-
+if Yfiltered.shape[1]==data[26].shape[0]:
+    pass
+elif Yfiltered.shape[1]>=data[26].shape[0]:
+    temp=np.zeros((len(Yfiltered),len(data[26])))
+    a=int(np.abs(len(data[26])-len(Yfiltered[0])))
+    temp[:,a:]=Yfiltered
+    Yfiltered=temp
 
 #%% Spectral correlation of noise
         #done by selecting window where the QD does no emit. Hope to see that everything is as zero as it can be
@@ -480,7 +486,7 @@ emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorre
     # up til now only postselection
 
 
-taus = np.arange(0,20,1)
+# taus = np.arange(0,20,1)
 # taus=[0,5,10,100]
 # taus=[0,1,2]
 
@@ -790,8 +796,9 @@ if Debugmode==True:
 # taus=[0,1,2,5,10,30,100]
 # taus=[1,5,8,10,15]
 # taus=[1,5,8,10,20]
-taus=[0,1]
-taus=[10,50]
+taus=[0,1,2,5,10,15,20]
+# taus=np.arange(0,25,1)
+# taus=[10,50]
 # taus=[30,50]
 # taus=[0,1,2]
 # taus=[0]
@@ -803,8 +810,8 @@ plot = 'corr'
 # Emissiondata1 = Yfiltered[:,0:100] #can get postselection by selecting only a particular window. Note that you need emissiondata to plot insteada of Yfiltered
 # Emissiondata2 = binnedintensities[:,0:100]
 emwavelrange=(500,540)
-emwavelrange=(600,640)
-emwavelrange=(595,630)
+emwavelrange=(600,620)
+# emwavelrange=(595,630)
 # emwavelrange=(np.min(wavelengths),np.max(wavelengths))
 emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
 
@@ -812,13 +819,13 @@ emissionwavelengths = wavelengths[emwavelindices[0]:emwavelindices[1]]
 
 
 excwavelrange=(430,590)
-excwavelrange=(500,580)
+excwavelrange=(500,590)
 excwavelindices=(np.argmin(np.abs(excitationdata[1][:,1]-excwavelrange[0])),np.argmin(np.abs(excitationdata[1][:,1]-excwavelrange[1])))
 
 excitationwavelengths = excitationdata[1][excwavelindices[0]:excwavelindices[1],1]
 
-limlow = 200
-limhigh = 500
+limlow = 700
+limhigh = 800
 Excitationdata = excitationdata[0][excwavelindices[0]:excwavelindices[1],limlow:limhigh]
 Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]-np.min(Yfiltered)
 
@@ -832,32 +839,10 @@ Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]-np.
 # excitationcovariance,excitationnormalization,excitationcorrelation = rplm.pearsoncorrelation(Excitationdata,Excitationdata,excitationwavelengths,excitationwavelengths,taus=taus,plot=plot)
 emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata,Emissiondata,emissionwavelengths,emissionwavelengths,taus=taus,plot=plot)
 
-#%% tempp
 
-
-emisspec = emissionspec
-emisspecold=emisspec[0][0,:,:]
-# emisphotons=(emisspecold-473*(2*ysize))*5.36/emisspec[3]['Gain']
-emisphotons=(emisspecold-495)*5.36
-plt.figure()
-emwavelrange=(600,640)
-emwavelindices=(np.argmin(np.abs(emisspec[1]-emwavelrange[0])),np.argmin(np.abs(emisspec[1]-emwavelrange[1])))
-X, Y = np.meshgrid(data[26]*dtmacro, emisspec[1][emwavelindices[0]:emwavelindices[1]])
-plt.pcolormesh(X, Y, emisphotons[emwavelindices[0]:emwavelindices[1],:len(data[26])])
-# plt.imshow(emisphotons)
-# plt.colorbar()
-
-timebins=np.linspace(0,int(Texp),int(Texp*5))
-wavelbins=np.linspace(500,595,190)
-Histdata,xedges,yedges=np.histogram2d(data[3]*data[1],calibcoeffs[1]+InVoltagenew_c(data[19]*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],bins=[timebins,wavelbins])#,norm=mcolors.LogNorm())
-X, Y = np.meshgrid(timebins, wavelbins)
-plt.pcolormesh(X, Y, Histdata.T)
-# plt.xlim(data[26][0]*dtmacro,data[26][-1]*dtmacro)
-# plt.xlim(120,250)
-plt.xlabel('Time (s)')
-plt.ylabel('Excitation/Emission wavelength')
 
 #%% correlation of fits of spectra
+fitted=rplm.fitspectra(Emissiondata,emissionwavelengths,0,100,model='Lor',Debugmode=False)
 fitted=rplm.fitspectra(Emissiondata,emissionwavelengths,0,100,model='Lor',Debugmode=False)
 
 fitted[0][51]=fitted[0][50]
@@ -907,29 +892,31 @@ plt.title('Correlation of fitted widths')
 
     #%%     Fourier transform the correlation data
 
-guessorigin=587
-origin,rest = rplm.find_origin(emissionnormalization[1],guessorigin,testwavelengths)#,prominence=50,width=5)
+guessorigin=608
+origin,rest = rplm.find_origin(emissionnormalization[1],guessorigin,emissionwavelengths)#,prominence=50,width=5)
 
 # origin= 150
-print(testwavelengths[origin])
-datapoints = 80
-origin= 129
+# print(testwavelengths[origin])
+datapoints = 40
+# origin= 129
 # origin = np.where(emissioncovariance==np.amax(emissioncovariance))[2][0]  #because it is data which is sorted like : taus, wavelengths, wavelengths
-print('polar transform centered around wavelength (nm)',wavelengths[origin])
-datapoints = 50
+print('polar transform centered around wavelength (nm)',emissionwavelengths[origin])
+datapoints = 60
 
-correlationpolar = cartesiantopolarcorrelation(emissioncorrelation,origin,datapoints)
+correlationpolar = rplm.cartesiantopolarcorrelation(emissioncorrelation,origin,datapoints)
 if Debugmode==True:
     plt.figure()
-    plt.imshow(correlationpolar[1][1])
+    # plt.imshow(correlationpolar[1][1])
+    plt.imshow(correlationpolar[1][1],extent=[np.min(correlationpolar[2]*180/np.pi),np.max(correlationpolar[2]*180/np.pi),int(datapoints/np.sqrt(2)),0],aspect='auto')
     plt.colorbar()
-    plt.ylabel('radius (nm)')
+    plt.ylabel('Radius (pixel)')
+    plt.xlabel('Angle (degrees)')       
     plt.title('Polar transform correlation map')
 
 correlationpolarsum=np.sum(correlationpolar[1],axis=1)
 correlationpolardata,covariancethetas = correlationpolar[1],correlationpolar[2] #use cartesian data as input
 
-fourierdata = fouriertransform(correlationpolardata,covariancethetas)
+fourierdata = rplm.fouriertransform(correlationpolardata,covariancethetas)
 fourierdata =fourierdata
 fourierthetashift = fourierdata[2] #is shifted to make the plot look cleaner
 fourierdatareal = fourierdata[3] # is shifted the same way as theta
@@ -965,6 +952,7 @@ plt.title('Correlation map. tau = '+str(taus[i]))
 #%% Plot fourier transforms
 selectedradii = [5,10,20,30]
 selectedradii= np.arange(0,50)
+selectedradii= np.arange(0,len(fourierdata[3][1]))
 # selectedradii = [40] # select a particular radius
 # fourierdataradius =
 if Debugmode==True: #plots the individual fourier transforms
@@ -997,7 +985,9 @@ if Debugmode==True: #plots the individual fourier transforms
         plt.figure()
         spectrum = j # this parameter is for different taus
 
-        for i in range(len(selectedradii)):
+        # for i in range(len(selectedradii)):
+        for i in range(0,20):
+            
         # for i in range(len(fourierdatareal[0])):
             selectedradius = selectedradii[i]
         # for i in range(20):
@@ -1009,7 +999,7 @@ if Debugmode==True: #plots the individual fourier transforms
             # plt.ylim(0,20)
             plt.xlabel('n-fold symmetry')
             plt.ylabel('Frequency Domain (Spectrum) Magnitude')
-            plt.title('Fourier Transform imag. Tau = ' + str(tau) +' Wav. Org. = ' +str(testwavelengths[origin])[:5]+' nm')
+            plt.title('Fourier Transform imag. Tau = ' + str(tau) +' Wav. Org. = ' +str(emissionwavelengths[origin])[:5]+' nm')
             plt.xlim(-6,6)
             plt.legend(loc=1)
 
@@ -1021,15 +1011,15 @@ ftreal = rplm.Fouriercomponentvstau(fourierdatareal, fourierthetashift, selected
 if Debugmode==True:
     plt.figure()
     plt.imshow(ftimag[1],extent=[np.min(selectedradii),np.max(selectedradii),np.max(taus),np.min(taus)])
-    plt.xlabel('radius')
-    plt.ylabel('tau')
-    plt.title('Zeroth component imag')
+    plt.xlabel('Radius')
+    plt.ylabel('Delay tau')
+    plt.title('Zeroth imaginairy component')
     
     plt.figure()
-    plt.imshow(ftimag[5],extent=[np.min(selectedradii),np.max(selectedradii),np.max(taus),np.min(taus)])
-    plt.xlabel('radius')
-    plt.ylabel('tau')
-    plt.title('Second component imag')
+    plt.imshow(-ftimag[5],extent=[np.min(selectedradii),np.max(selectedradii),np.max(taus),np.min(taus)])
+    plt.xlabel('Radius')
+    plt.ylabel('Delay tau')
+    plt.title('Second imaginairy component')
     plt.colorbar()
     
 
