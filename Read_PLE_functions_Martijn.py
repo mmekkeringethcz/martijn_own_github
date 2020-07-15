@@ -267,7 +267,7 @@ def spectralcorrelation(spectra1,spectra2,wavelengthsspectra1,wavelengthsspectra
             covariance[i] += np.outer(spectra1[:,t],spectra2[:,t+tau])
             normlambda1[i,:] += spectra1[:,t]
             normlambda2[i,:] += spectra2[:,t+tau]
-        normalization[i] = np.outer(normlambda1[i],normlambda2[i])*len(spectra1[0]) #the idea of the +1 was simply having to many dark counts which are averaged out and resulted in almost division by 0 errors. Nevertheless this also does not seem to work really properly actually.
+        normalization[i] = np.outer(normlambda1[i],normlambda2[i])*len(spectra1[0])+1 #the idea of the +1 was simply having to many dark counts which are averaged out and resulted in almost division by 0 errors. Nevertheless this also does not seem to work really properly actually.
         correlationtemp[i] = np.divide(covariance[i],normalization[i])
     
     correlation = np.zeros((len(taus),len(spectra1),len(spectra2))) 
@@ -859,8 +859,12 @@ def Findtshift(Freq,Vpp,Voffset,calibcoeffs,macrocyclelist,dtmacro,matchrange=(5
         [ylistbackward,xlistbackward] = np.histogram(lambackward,histbinnumber,range=matchrange)
         tlistbackward = (xlistbackward[:-1]+0.5*(xlistbackward[1]-xlistbackward[0]))
         plt.figure()
-        plt.plot(tlistforward,ylistforward)
-        plt.plot(tlistbackward,ylistbackward)
+        plt.plot(tlistforward,ylistforward,label='Forward sweep')
+        plt.xlabel('Wavelength (nm)')
+        plt.ylabel('Intensity')
+        plt.title('Aligned sweeps')
+        plt.plot(tlistbackward,ylistbackward,label='Backward sweep')
+        plt.legend()
     return optimumshift
 
 def MaxLikelihoodFunction(params,xdata,ydata,const,expterms): 
@@ -1006,7 +1010,57 @@ def histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawda
         
     return binnedintensities,binnedwavelengths
 
+def histogramexcitationspectraforandback(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,originaldata,wavelengthrange,histogram):
+#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
+#originaldata is all the photons collected
 
+
+    threshlow=1/Freq/4
+    threshhigh=3/Freq/4
+    #Sort microtimes in two halves
+    Z = np.logical_and(threshlow<(originaldata*dtmacro),(originaldata*dtmacro)<= threshhigh)
+    tforward=originaldata[np.where(Z)]
+    tbackward=originaldata[np.where(np.logical_not(Z))]
+    
+    binnedintensitiesforward = np.zeros((histogram,len(rawdata)))
+    binnedwavelengthsforward = np.zeros((histogram,len(rawdata)))
+    
+    for i in range(len(rawdata)-1):
+        # originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
+        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(tforward*dtmacro*originaldata[rawdata[i]:rawdata[i+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
+        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
+        binnedwavelengthsforward[:,i]= wavelengthstempavg
+        binnedintensitiesforward[:,i]=intensitiestemp
+     
+    binnedintensitiesbackward = np.zeros((histogram,len(rawdata)))
+    binnedwavelengthsbackward = np.zeros((histogram,len(rawdata)))
+    for i in range(len(rawdata)-1):
+        # originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
+        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(tbackward*dtmacro*originaldata[rawdata[i]:rawdata[i+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
+        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
+        binnedwavelengthsbackward[:,i]= wavelengthstempavg
+        binnedintensitiesbackward[:,i]=intensitiestemp
+        
+    return binnedintensitiesforward,binnedwavelengthsforward,binnedwavelengthsbackward,binnedintensitiesbackward
+
+
+def histogramexcitationspectranew(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram):
+#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
+#selecteddata is the index of the ones interested in the firstphotons listed
+#originaldata is all the photons collected, the macrocycletime data
+        
+    binnedintensities = np.zeros((histogram,len(rawdata)))
+    binnedwavelengths = np.zeros((histogram,len(rawdata)))
+    
+    for i in range(len(rawdata)-1):
+        originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
+        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*originaldata[rawdata[i]:selecteddata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
+        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
+        binnedwavelengths[:,i]= wavelengthstempavg
+        binnedintensities[:,i]=intensitiestemp
+     
+        
+    return binnedintensities,binnedwavelengths
 
 def MakeG2(times0,times1,dtmicro,g2restime=64e-11*20,nrbins=200):
     i0=0
@@ -1079,7 +1133,7 @@ def MakeG2(times0,times1,dtmicro,g2restime=64e-11*20,nrbins=200):
     plt.title('g(2) correlation')
     plt.xlabel('delay (ns)')
     plt.ylabel('occurence (a.u.)')
-    plt.ylim([0,max(g2)])
+    # plt.ylim([0,max(g2)])
     plt.show()
 
     return(g2tlist,g2,g2restime,nrbins)
