@@ -751,7 +751,7 @@ def Fouriercomponentvstau(fourierdata, fourierangles, selectedradii):
     for i in range(len(fourierdata)):
         for k in range(0,len(selectedradii)):
             selectedradius=selectedradii[k]
-            for j in range(len(fourierdata[0][i])):
+            for j in range(len(fourierdata[0][0])):
                 if fourierangles[i][k][j]==0:
                 
                     component1theta[i][k]= fourierangles[i][selectedradius][j]
