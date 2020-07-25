@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 """
 Created on Thu Mar 28 16:44:49 2019
 
@@ -141,7 +142,7 @@ if Debugmode==True:
     plt.title('Voltage to wavelength')
     plt.figtext(7/10,7/10,'R_sq = '+str(r_value**2)[:6])
     
-    
+# matchrange=(440,505)    
 matchrange=(500,600)
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,(-6e-4,-2e-4)) #coarse sweep
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,(tshift-1e-5,tshift+1e-5),Debugmode=True)
@@ -154,7 +155,7 @@ reffile = str(filename.split('MHz')[0].split('_')[-1])
 reffolder = folder#basefolders[socket.gethostname()]+'20200622_Perovskites_cryo/calibrationArio$/'
 # calibspec = rpl.importASC(reffolder+'backref_77p87MHz_200Hz_200mVpp_145mVoff_SP_no450LP.asc')
 calibspec = rpl.importASC(reffolder+'backref_4p86MHz_200Hz_500mVpp_60mVoffset.asc')
-# calibspec = rpl.importASC(reffolder+'backref'+str(reffile)+'MHz_200Hz_500mVpp_60mVoffset.asc')
+# calibspec = rpl.importASC(reffolder+'backref_9p734MHz_200Hz_500mVpp_60mVoff_ND0.asc')
 
 # plt.figure()
 # plt.imshow(calibspec[0],extent=[np.min(calibspec[1]),np.max(calibspec[1]),np.max(calibspec[1]),np.min(calibspec[1])])
@@ -191,7 +192,7 @@ plt.ylabel('Intensity')
 #     plt.figure()
 #     plt.plot(Wavelengthspec,interprefspec(ylistspec))
 # #check whether this excitation regime actually extends in the excitation spectrum of the regime you are interested in.
-wavelengthrangemin,wavelengthrangemax = 350,600
+wavelengthrangemin,wavelengthrangemax = 430,595
 wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
 histogrambin=247
 # wavelengthrange = matchrange
@@ -200,12 +201,12 @@ excspecwav = [excspecwavtemp[:-1]+(excspecwavtemp[1]-excspecwavtemp[0])/2]
 excspeccorr = excspec/interprefspec(excspecwav)
 
 plt.figure()
-plt.plot(excspecwav[0],excspec)    
+plt.plot(excspecwav[0],excspec/np.max(excspec))    
 plt.title('Uncorrected') 
 plt.xlabel('Excitation wavelength (nm)')
 plt.ylabel('Intensity')
 plt.figure()
-plt.plot(excspecwav[0],excspeccorr[0])   
+plt.plot(excspecwav[0],excspeccorr[0]/np.max(excspeccorr[0]))   
 plt.title('Laser corrected') 
 plt.xlabel('Excitation wavelength (nm)')
 plt.ylabel('Intensity')
@@ -215,15 +216,15 @@ plt.ylabel('Intensity')
     
 #%% Generate binned excitation spectra
 #this generates part of unbinned excitation spectra. It does not resolve for forward and backward scan
-binning = int(Texp/2) #binning is in units of seconds (s)
-# binning = 1/10
+# binning = int(Texp/2) #binning is in units of seconds (s)
+binning = 1/10
 expplottime = data[17][-1]*dtmacro
 excitationbegin = data[17][0]*dtmacro
 # binning = 1 #binning is in units of seconds (s)
 wavelengthrangemin,wavelengthrangemax = 400,593
 wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
 # wavelengthrange  = matchrange
-histogrambin=50 #number is irrelevant for excitation and emission correlation. Fixed that.
+histogrambin=300 #number is irrelevant for excitation and emission correlation. Fixed that.
 # histogrambin= int(np.divide((wavelengthrangemax-wavelengthrangemin),(np.max(Wavelengthspec)-np.min(Wavelengthspec)))*1/dtmacro/200/40) #200 is frequency of glvo cycle
 # firstphotonlist = rpl.HistPhotons(times0*dtmicro,binning,Texp)
 firstphotonlist = rpl.HistPhotons(times0*dtmicro,binning,expplottime)
@@ -314,8 +315,9 @@ excitationbegin = data[17][0]*dtmacro
 # binning = 1 #binning is in units of seconds (s)
 wavelengthrangemin,wavelengthrangemax = 400,593
 wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
+wavelengthrange =matchrange
 # wavelengthrange  = matchrange
-histogrambin=50 #number is irrelevant for excitation and emission correlation. Fixed that.
+histogrambin=80 #number is irrelevant for excitation and emission correlation. Fixed that.
 # histogrambin= int(np.divide((wavelengthrangemax-wavelengthrangemin),(np.max(Wavelengthspec)-np.min(Wavelengthspec)))*1/dtmacro/200/40) #200 is frequency of glvo cycle
 firstphotonlist = rpl.HistPhotons(times0*dtmicro,binning,Texp)
 # firstphotonlist = rpl.HistPhotons(times0*dtmicro,binning,expplottime)
@@ -409,10 +411,10 @@ if len(emissionspec[0])==1:
     
     if Debugmode==True:
         plt.figure()
-        plt.plot(wavelengths,timeaverage.ravel())
+        plt.plot(wavelengths,timeaverage.ravel()/np.max(timeaverage))
         plt.xlabel('Emission wavelength (nm)')
         plt.ylabel('Intensity')
-        plt.title('time-averaged signal')
+        plt.title('Emission spectrum')
         
         emwavelrange=(480,530)
         emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
@@ -424,7 +426,7 @@ if len(emissionspec[0])==1:
         # plt.imshow(Yfiltered)
         plt.ylabel('Emission wavelength (nm)')
         plt.xlabel('Time (s)')
-        plt.title('intensity vs time per wavelength')
+        plt.title('Emission spectrum vs time')
         plt.gca().invert_yaxis()
         plt.colorbar()
     
@@ -664,8 +666,8 @@ rawdata = data[25]
 originaldata= data[19]
 selecteddata=data[25]
 wavelengthrange = matchrange
-wavelengthrange = (420,510)
-# wavelengthrange = (500)
+# wavelengthrange = (430,575)
+wavelengthrange = (500,575)
 histogram = 300
 excitationdata1 = rplm.histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram)
 originaldata= data[20]
@@ -695,7 +697,8 @@ plt.title('Full excitation spectra')
     
 # if Debugmode==True:
 fig,ax=plt.subplots(2,1,sharex=True,sharey=False,constrained_layout=True) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
-emwavelrange=(600,640)
+# emwavelrange=(500,540)
+emwavelrange=(590,620)
 emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
 timeminplot=0
 timemaxplot=-1
@@ -715,6 +718,7 @@ ax[0].invert_yaxis()
 fig.colorbar(im0,ax=ax[0])
 # vmax=50
 vmax=np.max(excitationdatacorr)
+vmax=np.max(excitationdata)
 im1=ax[1].imshow(excitationdata,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(excitationdata1[1]),np.min(excitationdata1[1][excitationdata1[1]>0])],aspect='auto',vmin=0,vmax=vmax)
 # im1=ax[1].imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(excitationdata[1]),np.min(excitationdata[1][excitationdata[1]>0])])
 ax[1].set_ylabel('Excitation wavelength (nm)')
@@ -744,6 +748,7 @@ ax[0].xaxis.set_tick_params(which='both', labelbottom=True)
 ax[0].invert_yaxis()
 fig.colorbar(im0,ax=ax[0])
 vmax=np.max(excitationdatacorr)
+vmax=np.max(excitationdata)
 im1=ax[1].imshow(excitationdatacorr,extent=[0,len(excitationdata[0]),np.max(excitationdata1[1]),np.min(excitationdata1[1][excitationdata1[1]>0])],vmin=0,vmax=vmax,aspect='auto')
 # im1=ax[1].imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(excitationdata[1]),np.min(excitationdata[1][excitationdata[1]>0])])
 ax[1].set_ylabel('Excitation wavelength (nm)')
@@ -755,7 +760,54 @@ ax[1].invert_yaxis()
 
 #select excitation spectra based on trigger events from first photons in the emission cycle
 #can do excitation emission correlation only on those. Forward and backward sweep combined
+#%% emission and excitaiton together for iamges
+#each plotted in time frame
 
+finalindex=7000    
+# if Debugmode==True:
+fig,ax=plt.subplots(2,1,sharex=True,sharey=False,constrained_layout=True) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
+# emwavelrange=(515,540)
+emwavelrange=(590,620)
+emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
+timeminplot=0
+timemaxplot=-1
+vmax=2000
+vmax=np.max(Yfiltered[Yfiltered<np.max(Yfiltered)])
+vmax=np.max(Yfiltered)
+# plt.figure()
+# plt.imshow(Yfiltered[emwavelindices[0]:emwavelindices[1],timeminplot:timemaxplot],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths[emwavelindices[0]:emwavelindices[1]]),np.min(wavelengths[emwavelindices[0]:emwavelindices[1]])],aspect='auto')#,vmax=1000)
+# im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)],aspect='auto')
+im0=ax[0].imshow(Yfiltered[emwavelindices[0]:emwavelindices[1],:],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths[emwavelindices[0]:emwavelindices[1]]),np.min(wavelengths[emwavelindices[0]:emwavelindices[1]])],aspect='auto',vmin=0)
+# im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)])
+ax[0].set_ylabel('Emission wavelength (nm)',fontsize=16)
+# ax[0].set_xlabel('Time (s)')
+# ax[0].set_title('Emission')
+# ax[0].xaxis.set_tick_params(which='both', labelbottom=True)
+# ax[0].xaxis.set_tick_params(which='both', labelbottom=True)
+ax[0].invert_yaxis()
+fig.colorbar(im0,ax=ax[0])
+# vmax=50
+vmax=np.max(excitationdata)
+im1=ax[1].imshow(excitationdata,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(excitationdata1[1]),np.min(excitationdata1[1][excitationdata1[1]>0])],aspect='auto',vmin=0,vmax=vmax)
+# im1=ax[1].imshow(excitationdata[0],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(excitationdata[1]),np.min(excitationdata[1][excitationdata[1]>0])])
+ax[1].set_ylabel('Excitation wavelength (nm)',fontsize=16)
+ax[1].set_xlabel('Time (s)',fontsize=16)
+# ax[1].set_title('Excitation')
+fig.colorbar(im1,ax=ax[1])
+ax[1].invert_yaxis()
+# plt.tight_layout()
+
+
+#select excitation spectra based on trigger events from first photons in the emission cycle
+#can do excitation emission correlation only on those. Forward and backward sweep combined
+#%%
+plt.figure()
+idxmin=660
+idxmax=690
+plt.plot(excitationdata1[1][:,2],np.sum(excitationdata[:,idxmin:idxmax],axis=1),label='Gray')
+idxmin=250
+idxmax=300
+plt.plot(excitationdata1[1][:,2],np.sum(excitationdata[:,idxmin:idxmax],axis=1),label='Bright')
 #%% fit only part of emission and then overplot with sampled function
 emwavelrange=(605,640)
 emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
@@ -815,10 +867,10 @@ plt.plot(x,lorplot)
 plt.plot(testwavelengths,test)
 #%% #select particular exctiation wavelength based on chosen range emission wavelengths
 emwavelrange = np.array([(606.5,609.5),(611.5,614.5),(615,618)])
-emwavelrange = np.array([(521,525),(526,530)])
+emwavelrange = np.array([(596,601),(601,606)])
 plt.figure()
 plt.plot(np.sum(Yfiltered,axis=0))
-intensitymaxoff=0#base on sum Yfiltered plot
+intensitymaxoff=50000#base on sum Yfiltered plot
 # emwavelrange = np.array([(600,605),(605,610)])
 emwavindices = np.zeros(emwavelrange.shape)
 for j in range(len(emwavelrange)):
@@ -874,22 +926,177 @@ for j in range(len(Yfiltered[0])):
 # plt.plot(excitationdata[1][:,1],np.sum(exspectr,axis=1)/nrtr,label='trion')
 # plt.title('excitation')
 # plt.legend()
+fig,ax=plt.subplots(2,1,sharex=True,sharey=False,constrained_layout=True) #plot excitation and emission above each other. If you want them to be visualized with the same window the yrange should cover the same distance. also zooming goes automatically
+# emwavelrange=(500,540)
+emwavelrange=(590,620)
+emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
+timeminplot=0
+timemaxplot=-1
+vmax=2000
+vmax=np.max(Yfiltered[Yfiltered<np.max(Yfiltered)])
+vmax=np.max(emspecex)
+# plt.figure()
+# plt.imshow(Yfiltered[emwavelindices[0]:emwavelindices[1],timeminplot:timemaxplot],extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths[emwavelindices[0]:emwavelindices[1]]),np.min(wavelengths[emwavelindices[0]:emwavelindices[1]])],aspect='auto')#,vmax=1000)
+# im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)],aspect='auto')
+im0=ax[0].imshow(emspecex,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths[emwavelindices[0]:emwavelindices[1]]),np.min(wavelengths[emwavelindices[0]:emwavelindices[1]])],aspect='auto',vmin=0)
+# im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)])
+ax[0].set_ylabel('Emission wavelength (nm)')
+ax[0].set_xlabel('Time (s)')
+ax[0].set_title('Emission')
+ax[0].xaxis.set_tick_params(which='both', labelbottom=True)
+ax[0].invert_yaxis()
+fig.colorbar(im0,ax=ax[0])
 
-
+im0=ax[1].imshow(emspecoff,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths[emwavelindices[0]:emwavelindices[1]]),np.min(wavelengths[emwavelindices[0]:emwavelindices[1]])],aspect='auto',vmin=0)
+# im0=ax[0].imshow(Yfiltered,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,np.max(wavelengths),np.min(wavelengths)])
+ax[1].set_ylabel('Emission wavelength (nm)')
+ax[1].set_xlabel('Time (s)')
+ax[1].set_title('Emission')
+ax[1].xaxis.set_tick_params(which='both', labelbottom=True)
+ax[1].invert_yaxis()
+fig.colorbar(im0,ax=ax[1])
 plt.figure()
 plt.plot(wavelengths,np.sum(emspecex,axis=1)/np.sum(emspecex),label='Bright')        
 plt.plot(wavelengths,np.sum(emspectr,axis=1)/np.sum(emspectr),label='Gray')
-# plt.plot(wavelengths,np.sum(emspecoff,axis=1)/np.sum(emspecoff),label='Dark')
-plt.title('emission')
+plt.plot(wavelengths,np.sum(emspecoff,axis=1)/np.sum(emspecoff),label='Dark')
+plt.title('Emission')
+plt.ylabel('Intensity')
+plt.xlabel('Emission wavelength (nm)')
 plt.legend()
+
+
 plt.figure()
 plt.plot(excitationdata1[1][:,1],np.sum(exspecex,axis=1)/np.sum(exspecex)/(interprefspec(excitationdata1[1][:,1])),label='Bright')
 plt.plot(excitationdata1[1][:,1],np.sum(exspectr,axis=1)/np.sum(exspectr)/interprefspec(excitationdata1[1][:,1]),label='Gray')
-# plt.plot(excitationdata1[1][:,1],np.sum(exspecoff,axis=1)/np.sum(exspecoff)/interprefspec(excitationdata1[1][:,1]),label='Dark')
-plt.title('excitation')
-plt.legend()
+plt.plot(excitationdata1[1][:,1],np.sum(exspecoff,axis=1)/np.sum(exspecoff)/interprefspec(excitationdata1[1][:,1]),label='Dark')
+plt.title('Excitation')
+plt.ylabel('Intensity')
+plt.xlabel('Excitation wavelength (nm)')
+plt.legend(loc=4)
 # plt.xlim(500,575)
 # plt.ylim(0,0.01)
+#%%
+#%% Lifetime vs Intensity
+# MaxLikelihoodFunction_c = nb.jit(nopython=True)(MaxLikelihoodFunction)
+macrotimesin=data[3]
+microtimesin=data[2]
+# binwidth=0.01
+macrolimits = rpl.HistPhotons(macrotimesin*dtmacro,binwidth,Texp)
+
+macrotimesin=data[25]
+macrolimits=macrotimesin
+
+limits=macrolimits
+
+
+
+#%% Limits
+
+
+
+macrotimescyclein=data[19]
+microtimes_ex= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_ex= np.zeros(len(data[2]),dtype='int64')
+nrex=0
+bins_ex=0
+microtimes_trion= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trion= np.zeros(len(data[2]),dtype='int64')
+nrtrion=0
+bins_mid=0
+microtimes_mid= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_mid= np.zeros(len(data[2]),dtype='int64')
+nrmid=0
+bins_off=0
+microtimes_off= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_off= np.zeros(len(data[2]),dtype='int64')
+nroff=0
+bins_trion=0
+nrtrlate=0
+bins_trlate=0
+microtimes_trlate= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trlate= np.zeros(len(data[2]),dtype='int64')
+nrtrearly=0
+bins_trearly=0
+microtimes_trearly= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trearly= np.zeros(len(data[2]),dtype='int64')
+timetrion = np.zeros(len(limits)-1)
+timeexciton = np.zeros(len(limits)-1)
+for tbinnr in range(len(limits)-1):
+    nphots = limits[tbinnr+1]-limits[tbinnr]
+    microtimes = microtimesin[limits[tbinnr]:limits[tbinnr+1]]
+    macrotimescycle = macrotimescyclein[limits[tbinnr]:limits[tbinnr+1]]
+
+    if maxindex[tbinnr]==0 and tempsum[tbinnr]>intensitymaxoff:# and taulist[tbinnr]<lifetimeexciton:
+
+        microtimes_ex[nrex:nrex+nphots]=microtimes
+        macrotimescycle_ex[nrex:nrex+nphots]=macrotimescycle
+        bins_ex+=1
+        nrex+=nphots
+        timeexciton[tbinnr]=1
+
+
+    # elif nphots>limittrlow and nphots<limittrhigh and taulist[tbinnr]<10 and tauav[tbinnr]>1:# and taulist[tbinnr]>0.05: #and (photonspbin[tbinnr]-7)/taulist[tbinnr]>112/28
+        # print('found')
+
+    elif maxindex[tbinnr]==1 and tempsum[tbinnr]>intensitymaxoff:
+        microtimes_trion[nrtrion:nrtrion+nphots]=microtimes
+        macrotimescycle_trion[nrtrion:nrtrion+nphots]=macrotimescycle
+        bins_trion+=1
+        nrtrion+=nphots
+        timetrion[tbinnr]=1
+        for k in range(len(microtimes)):
+            if microtimes[k]*dtmicro>22e-9 and microtimes[k]*dtmicro<50e-9:
+                # print('found')
+                microtimes_trlate[nrtrlate]=microtimes[k]
+                macrotimescycle_trlate[nrtrlate]=macrotimescycle[k]
+                nrtrlate+=1
+            if microtimes[k]*dtmicro>9e-9 and microtimes[k]*dtmicro<15e-9:
+                # print('found')
+                microtimes_trearly[nrtrearly]=microtimes[k]
+                macrotimescycle_trearly[nrtrearly]=macrotimescycle[k]
+                nrtrearly+=1
+    # elif photonspbin[tbinnr]>limittrlow and photonspbin[tbinnr]<limitex and tauav[tbinnr]>25 :
+    elif tempsum[tbinnr]<intensitymaxoff:
+        microtimes_off[nroff:nroff+nphots]=microtimes
+        macrotimescycle_off[nroff:nroff+nphots]=macrotimescycle
+        bins_off+=1
+        nroff+=nphots
+
+microtimes_ex = microtimes_ex[:nrex]
+macrotimescycle_ex = macrotimescycle_ex[:nrex]
+microtimes_trion = microtimes_trion[:nrtrion]
+macrotimescycle_trion = macrotimescycle_trion[:nrtrion]
+microtimes_mid = microtimes_mid[:nrmid]
+macrotimescycle_mid = macrotimescycle_mid[:nrmid]
+microtimes_off = microtimes_off[:nroff]
+macrotimescycle_off = macrotimescycle_off[:nroff]
+microtimes_trlate = microtimes_trlate[:nrtrlate]
+macrotimescycle_trlate = macrotimescycle_trlate[:nrtrlate]
+microtimes_trearly = microtimes_trearly[:nrtrearly]
+macrotimescycle_trearly = macrotimescycle_trearly[:nrtrearly]
+#% Lifetime of Exciton and Trion
+plt.figure()
+fitex=rpl.GetLifetime(microtimes_ex,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_ex/(Texp/binwidth),expterms=1,method='ML_c')
+# fitex=GetLifetime(microtimes_ex,dtmicro,dtmacro,100e-9,tstart=-1,plotbool=True,ybg=bins_ex*40*binwidth/np.max(microtimesblue),method='ML_c')
+fittrion=rpl.GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_trion/(Texp/binwidth),expterms=1,method='ML_c')
+# fittrion=GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotbool=True,ybg=bins_trion*40*binwidth/np.max(microtimesblue),method='ML_c')
+
+fitoff=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,10e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_trion/(Texp/binwidth),method='ML_c')
+# fitmid=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_mid/(Texp/binwidth),expterms=2,method='ML_c')
+
+print('Rad lifetime ratio:'+str(fittrion[1]/bins_trion/(fitex[1]/bins_ex)))
+#plt.xlim([0,220])
+# plt.legend(['High cps','High cps fit','Mid cps','Mid cps fit','Low cps','Low cps fit'])
+
+#%% Integrate parts
+excitationends=(494.3,508.5)
+excwavindices = (np.argmin(np.abs(excitationdata1[1][:,1]-excitationends[0])),np.argmin(np.abs(excitationdata1[1][:,1]-excitationends[1])))
+
+tempex=np.sum(exspecex,axis=1)/np.sum(exspecex)
+temptr=np.sum(exspectr,axis=1)/np.sum(exspectr)
+exspectrsum=np.sum(tempex[excwavindices[0]:excwavindices[1]])
+exspecexsum=np.sum(temptr[excwavindices[0]:excwavindices[1]])
+
 #%% Excitation overplot with emission fitted
 emfit=rplm.fitspectra(Yfiltered,wavelengths,0,len(Yfiltered[0]),'Lor',Debugmode=False)
 
@@ -934,7 +1141,7 @@ ax2.tick_params('y', colors='r')
 
 
 #%% excitation and emission correlation
-taus=[0,1,2,3,4,5]
+taus=[0,1,2]
 # taus=[1,5,8,10,15]
 # taus=[1,5,8,10,20]
 # taus=[0,1,2,5,10,15,20]
@@ -953,7 +1160,7 @@ plot = 'corr'
 # Emissiondata2 = binnedintensities[:,0:100]
 # emwavelrange=(520,527.5)
 # emwavelrange=(600,620)
-emwavelrange=(590,650)
+emwavelrange=(500,540)
 # emwavelrange=(np.min(wavelengths),np.max(wavelengths))
 emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
 
@@ -961,14 +1168,15 @@ emissionwavelengths = wavelengths[emwavelindices[0]:emwavelindices[1]]
 
 
 # excwavelrange=(430,590)
-# excwavelrange=(500,590)
-# excwavelindices=(np.argmin(np.abs(excitationdata[1][:,1]-excwavelrange[0])),np.argmin(np.abs(excitationdata[1][:,1]-excwavelrange[1])))
+excwavelrange=(505,575)
+excwavelrange=matchrange
+excwavelindices=(np.argmin(np.abs(excitationdata1[1][:,1]-excwavelrange[0])),np.argmin(np.abs(excitationdata1[1][:,1]-excwavelrange[1])))
 
-# excitationwavelengths = excitationdata[1][excwavelindices[0]:excwavelindices[1],1]
+excitationwavelengths = excitationdata1[1][excwavelindices[0]:excwavelindices[1],1]
 
-limlow = 1850
-limhigh = 2200
-# Excitationdata = excitationdata[0][excwavelindices[0]:excwavelindices[1],limlow:limhigh]
+limlow = 3000
+limhigh = 3500
+Excitationdata = excitationdata[excwavelindices[0]:excwavelindices[1],limlow:limhigh]
 Emissiondata = Yfiltered[emwavelindices[0]:emwavelindices[1],limlow:limhigh]-np.min(Yfiltered)
 
 
@@ -1205,6 +1413,21 @@ g2data=rpl.MakeG2(times0[indices0],times1[indices1],dtmicro,g2restime=dtmicro*4,
 plt.figure()
 plt.plot(g2data[0],g2data[1])
 
+#%% G2 for biexciton
+
+maxtime=0 #in ns
+indices0=np.argwhere((data[2]-lifetime[3])*dtmicro*1e9-1>maxtime)
+indices1=np.argwhere((data[4]-lifetime[3])*dtmicro*1e9-1>maxtime)
+# exspec=rpl.Easyhist(calibcoeffs[1]+rplm.InVoltagenew(data[19][indices0]*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+# plt.plot(exspec[0],(exspec[1]-np.min(exspec[1]))/np.sum(exspec[1]-np.min(exspec[1])))
+# indices1=np.argwhere((calibcoeffs[1]+rplm.InVoltagenew(data[20]*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0])<580)
+g2data=rplm.MakeG2(times0[indices0],times1[indices1],dtmicro,g2restime=dtmicro*4,nrbins=1000)
+# g2data=rplm.MakeG2(times0,times1,dtmicro,g2restime=dtmicro*4,nrbins=1000)
+# plt.figure()
+# plt.plot(g2data[0],g2data[1])
+# plt.xlabel('delay (ns)')
+# plt.ylabel('occurence (a.u.)')
+# plt.title('g(2) correlation')
 #%% Wiener process
 #synthetic data starts here
 centerstart,scaling,length = 600,1/10,500
@@ -1741,7 +1964,7 @@ fitdata=rpl.GetLifetime(microtimesblue,dtmicro,dtmacro,250e-9,tstart=-1,plotbool
 # MaxLikelihoodFunction_c = nb.jit(nopython=True)(MaxLikelihoodFunction)
 macrotimesin=data[3]
 microtimesin=data[2]
-binwidth=0.01
+# binwidth=0.01
 macrolimits = rpl.HistPhotons(macrotimesin*dtmacro,binwidth,Texp)
 
 # macrotimesin=data[25]
@@ -1769,7 +1992,7 @@ plt.show()
 for tbinnr in tqdm(range(len(limits)-1)):
     microtimes = microtimesin[limits[tbinnr]:limits[tbinnr+1]]
 
-    [taulist[tbinnr],Alist[tbinnr],ybglist[tbinnr],buff[tbinnr]]=rpl.GetLifetime(microtimes,dtmicro,dtmacro,300e-9,tstart=lifetime[3]*dtmicro,histbinmultiplier=1,ybg=lifetime[2]*binwidth/Texp,plotbool=False,expterms=1,method='ML_c') 
+    # [taulist[tbinnr],Alist[tbinnr],ybglist[tbinnr],buff[tbinnr]]=rpl.GetLifetime(microtimes,dtmicro,dtmacro,300e-9,tstart=lifetime[3]*dtmicro,histbinmultiplier=1,ybg=lifetime[2]*binwidth/Texp,plotbool=False,expterms=1,method='ML_c') 
     # lifetimetot=rpl.GetLifetime(microtimes,dtmicro,dtmacro,300e-9,tstart=lifetime[3]*dtmicro,histbinmultiplier=1,ybg=lifetime[2]*binwidth/Texp,plotbool=False,expterms=2,method='ML_c') 
     # [taulist1[tbinnr],taulist2[tbinnr],Alist1[tbinnr],Alist2[tbinnr],ybglist[tbinnr],buff[tbinnr]]=[lifetimetot[0][0],lifetimetot[0][1],lifetimetot[1][0],lifetimetot[1][1],lifetimetot[2],lifetimetot[3]]
     tauav[tbinnr]=(np.mean(microtimes)-lifetime[3])*dtmicro*1e9-1
@@ -1821,7 +2044,151 @@ else:
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel('Photons per '+str(int(binwidth*1000))+' ms bin', color='b')
 
+#%% Limits
+limitex=500 #base these limits on the above-mentioned plot.
+limittrlow=42
+limittrhigh=80
 
+
+limitoffhigh=20
+# 
+lifetimeexciton=50
+# lifetimetrionmin=4
+# lifetimetrionmax=6
+# microtimesin=microtimesblue
+# macrotimesin=macrotimesblue
+macrotimescyclein=data[19]
+microtimes_ex= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_ex= np.zeros(len(data[2]),dtype='int64')
+nrex=0
+bins_ex=0
+microtimes_trion= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trion= np.zeros(len(data[2]),dtype='int64')
+nrtrion=0
+bins_mid=0
+microtimes_mid= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_mid= np.zeros(len(data[2]),dtype='int64')
+nrmid=0
+bins_off=0
+microtimes_off= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_off= np.zeros(len(data[2]),dtype='int64')
+nroff=0
+bins_trion=0
+nrtrlate=0
+bins_trlate=0
+microtimes_trlate= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trlate= np.zeros(len(data[2]),dtype='int64')
+nrtrearly=0
+bins_trearly=0
+microtimes_trearly= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trearly= np.zeros(len(data[2]),dtype='int64')
+timetrion = np.zeros(len(limits)-1)
+timeexciton = np.zeros(len(limits)-1)
+for tbinnr in range(len(limits)-1):
+    nphots = limits[tbinnr+1]-limits[tbinnr]
+    microtimes = microtimesin[limits[tbinnr]:limits[tbinnr+1]]
+    macrotimescycle = macrotimescyclein[limits[tbinnr]:limits[tbinnr+1]]
+
+    if nphots>limitex:# and taulist[tbinnr]<lifetimeexciton:
+
+        microtimes_ex[nrex:nrex+nphots]=microtimes
+        macrotimescycle_ex[nrex:nrex+nphots]=macrotimescycle
+        bins_ex+=1
+        nrex+=nphots
+        timeexciton[tbinnr]=1
+
+
+    elif nphots>limittrlow and nphots<limittrhigh and taulist[tbinnr]<10 and tauav[tbinnr]>1:# and taulist[tbinnr]>0.05: #and (photonspbin[tbinnr]-7)/taulist[tbinnr]>112/28
+        # print('found')
+
+#    elif photonspbin[tbinnr]>limittrlow and photonspbin[tbinnr]<limittrhigh and taulist[tbinnr]>0.5 and (photonspbin[tbinnr]-10)/taulist[tbinnr]>505/27:
+        microtimes_trion[nrtrion:nrtrion+nphots]=microtimes
+        macrotimescycle_trion[nrtrion:nrtrion+nphots]=macrotimescycle
+        bins_trion+=1
+        nrtrion+=nphots
+        timetrion[tbinnr]=1
+        for k in range(len(microtimes)):
+            if microtimes[k]*dtmicro>22e-9 and microtimes[k]*dtmicro<50e-9:
+                # print('found')
+                microtimes_trlate[nrtrlate]=microtimes[k]
+                macrotimescycle_trlate[nrtrlate]=macrotimescycle[k]
+                nrtrlate+=1
+            if microtimes[k]*dtmicro>9e-9 and microtimes[k]*dtmicro<15e-9:
+                # print('found')
+                microtimes_trearly[nrtrearly]=microtimes[k]
+                macrotimescycle_trearly[nrtrearly]=macrotimescycle[k]
+                nrtrearly+=1
+    # elif photonspbin[tbinnr]>limittrlow and photonspbin[tbinnr]<limitex and tauav[tbinnr]>25 :
+    elif nphots<limitoffhigh and taulist[tbinnr]<10:
+        microtimes_off[nroff:nroff+nphots]=microtimes
+        macrotimescycle_off[nroff:nroff+nphots]=macrotimescycle
+        bins_off+=1
+        nroff+=nphots
+    if nphots>limitex and taulist[tbinnr]>60:
+        # print('found')
+        microtimes_mid[nrmid:nrmid+nphots]=microtimes
+        macrotimescycle_mid[nrmid:nrmid+nphots]=macrotimescycle
+        bins_mid+=1
+        nrmid+=nphots
+microtimes_ex = microtimes_ex[:nrex]
+macrotimescycle_ex = macrotimescycle_ex[:nrex]
+microtimes_trion = microtimes_trion[:nrtrion]
+macrotimescycle_trion = macrotimescycle_trion[:nrtrion]
+microtimes_mid = microtimes_mid[:nrmid]
+macrotimescycle_mid = macrotimescycle_mid[:nrmid]
+microtimes_off = microtimes_off[:nroff]
+macrotimescycle_off = macrotimescycle_off[:nroff]
+microtimes_trlate = microtimes_trlate[:nrtrlate]
+macrotimescycle_trlate = macrotimescycle_trlate[:nrtrlate]
+microtimes_trearly = microtimes_trearly[:nrtrearly]
+macrotimescycle_trearly = macrotimescycle_trearly[:nrtrearly]
+#% Lifetime of Exciton and Trion
+plt.figure()
+fitex=rpl.GetLifetime(microtimes_ex,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_ex/(Texp/binwidth),expterms=2,method='ML_c')
+# fitex=GetLifetime(microtimes_ex,dtmicro,dtmacro,100e-9,tstart=-1,plotbool=True,ybg=bins_ex*40*binwidth/np.max(microtimesblue),method='ML_c')
+fittrion=rpl.GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_trion/(Texp/binwidth),expterms=2,method='ML_c')
+# fittrion=GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotbool=True,ybg=bins_trion*40*binwidth/np.max(microtimesblue),method='ML_c')
+
+# fitoff=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,10e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_trion/(Texp/binwidth),method='ML_c')
+fitmid=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_mid/(Texp/binwidth),expterms=2,method='ML_c')
+
+print('Rad lifetime ratio:'+str(fittrion[1]/bins_trion/(fitex[1]/bins_ex)))
+#plt.xlim([0,220])
+# plt.legend(['High cps','High cps fit','Mid cps','Mid cps fit','Low cps','Low cps fit'])
+
+#%%
+
+histsettings=(540,590,100)
+plt.figure()
+exspecex=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_ex*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+plt.plot(exspecex[0],exspecex[1]/np.sum(exspecex[1])/interprefspec(exspecex[0]),label='Bright')
+exspectr=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_trion*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+plt.plot(exspectr[0],exspectr[1]/np.sum(exspectr[1])/interprefspec(exspectr[0]),label='Gray')
+exspecoff=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_off*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+plt.plot(exspecoff[0],exspecoff[1]/np.sum(exspecoff[1])/interprefspec(exspecoff[0]),label='Dark')
+
+plt.legend()
+# exspec=rpl.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_mid*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+# plt.plot(exspec[0],(exspec[1]/np.sum(exspec[1])))
+plt.xlabel('Excitation wavelength')
+plt.ylabel('Intensity')
+plt.title('Excitation spectra')
+#%%
+histsettings=(540,590,100)
+plt.figure()
+exspecex=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_ex*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+plt.plot(exspecex[0],exspecex[1]/bins_ex/interprefspec(exspecex[0]),label='Bright')
+exspectr=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_trion*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+plt.plot(exspectr[0],exspectr[1]/bins_trion/interprefspec(exspectr[0]),label='Gray')
+# exspecoff=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_off*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+# plt.plot(exspecoff[0],exspecoff[1]/np.sum(exspecoff[1])/interprefspec(exspecoff[0]),label='Dark')
+
+plt.legend()
+# exspec=rpl.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_mid*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+# plt.plot(exspec[0],(exspec[1]/np.sum(exspec[1])))
+plt.xlabel('Excitation wavelength')
+plt.ylabel('Intensity')
+plt.title('Excitation spectra')
 #%% 2 detectors
 macrotimesindet0=data[3]
 macrotimesindet1=data[5]
@@ -1898,7 +2265,7 @@ if lengthlimits==len(data[25]):
 
 else:
     fig,ax1 = plt.subplots()
-    ax1.plot(macrotimesindet0[limits[0:lengthlimits-1]]*dtmacro,photonspbintot,'b')
+    ax1.plot(macrotimesindet0[macrolimitsdet0[0:lengthlimits-1]]*dtmacro,photonspbintot,'b')
     #ax1.plot(macrotimesin[limits[0:lengthlimits-1]]*dtmacro,Alist,'b')
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel('Photons per '+str(int(binwidth*1000))+' ms bin', color='b')
@@ -1907,81 +2274,122 @@ else:
     #ax1.ticklabel_format(style='sci',scilimits=(-2,3),axis='both')
     ax1.tick_params('y', colors='b')
     ax2 = ax1.twinx()
-    ax2.plot(macrotimesindet0[limits[0:lengthlimits-1]]*dtmacro,tauavtot,'r')
+    ax2.plot(macrotimesindet0[macrolimitsdet0[0:lengthlimits-1]]*dtmacro,tauavtot,'r')
     #ax2.set_ylim([586,588])
     ax2.set_ylim([0,50])
     ax2.set_ylabel('Lifetime (ns)', color='r')
     ax2.tick_params('y', colors='r')
 
 
-#%% Limits
-limitex=500 #base these limits on the above-mentioned plot.
-limittrlow=42
-limittrhigh=80
+
+#%% Limits 2 detectors
+limitex=500*2 #base these limits on the above-mentioned plot.
+limittrlow=42*2
+limittrhigh=80*2
 
 
-limitoffhigh=200
+limitoffhigh=200*2
 # 
 lifetimeexciton=50
 # lifetimetrionmin=4
 # lifetimetrionmax=6
 # microtimesin=microtimesblue
 # macrotimesin=macrotimesblue
-macrotimescyclein=data[19]
-microtimes_ex= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_ex= np.zeros(len(data[2]),dtype='int64')
+macrotimescycleindet0=data[19]
+macrotimescycleindet1=data[20]
+microtimes_exdet0= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_exdet0= np.zeros(len(data[2]),dtype='int64')
 nrex=0
 bins_ex=0
-microtimes_trion= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_trion= np.zeros(len(data[2]),dtype='int64')
-nrtrion=0
+microtimes_triondet0= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_triondet0= np.zeros(len(data[2]),dtype='int64')
+nrtriondet0=0
 bins_mid=0
-microtimes_mid= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_mid= np.zeros(len(data[2]),dtype='int64')
-nrmid=0
+microtimes_middet0= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_middet0= np.zeros(len(data[2]),dtype='int64')
+nrmiddet0=0
 bins_off=0
-microtimes_off= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_off= np.zeros(len(data[2]),dtype='int64')
-nroff=0
+microtimes_offdet0= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_offdet0= np.zeros(len(data[2]),dtype='int64')
+nroffdet0=0
 bins_trion=0
 nrtrlate=0
 bins_trlate=0
-microtimes_trlate= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_trlate= np.zeros(len(data[2]),dtype='int64')
+microtimes_trlatedet0= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trlatedet0= np.zeros(len(data[2]),dtype='int64')
 nrtrearly=0
 bins_trearly=0
-microtimes_trearly= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_trearly= np.zeros(len(data[2]),dtype='int64')
-timetrion = np.zeros(len(limits)-1)
-timeexciton = np.zeros(len(limits)-1)
-for tbinnr in range(len(limits)-1):
-    nphots = limits[tbinnr+1]-limits[tbinnr]
-    microtimes = microtimesin[limits[tbinnr]:limits[tbinnr+1]]
-    macrotimescycle = macrotimescyclein[limits[tbinnr]:limits[tbinnr+1]]
+microtimes_trearlydet0= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trearlydet0= np.zeros(len(data[2]),dtype='int64')
 
+microtimes_exdet1= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_exdet1= np.zeros(len(data[2]),dtype='int64')
+nrex=0
+bins_ex=0
+microtimes_triondet1= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_triondet1= np.zeros(len(data[2]),dtype='int64')
+nrtriondet1=0
+bins_mid=0
+microtimes_middet1= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_middet1= np.zeros(len(data[2]),dtype='int64')
+nrmiddet1=0
+bins_off=0
+microtimes_offdet1= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_offdet1= np.zeros(len(data[2]),dtype='int64')
+nroffdet1=0
+bins_trion=0
+nrtrlate=0
+bins_trlate=0
+microtimes_trlatedet1= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trlatedet1= np.zeros(len(data[2]),dtype='int64')
+nrtrearly=0
+bins_trearly=0
+microtimes_trearlydet1= np.zeros(len(data[2]),dtype='int64')
+macrotimescycle_trearlydet1= np.zeros(len(data[2]),dtype='int64')
+
+timetrion = np.zeros(len(macrolimitsdet0)-1)
+timeexciton = np.zeros(len(macrolimitsdet0)-1)
+for tbinnr in range(len(macrolimitsdet0)-1):
+    nphotsdet0 = macrolimitsdet0[tbinnr+1]-macrolimitsdet0[tbinnr]
+    nphotsdet1 = macrolimitsdet1[tbinnr+1]-macrolimitsdet1[tbinnr]
+    nphots=nphotsdet0+nphotsdet1
+    microtimesdet0 = microtimesin[macrolimitsdet0[tbinnr]:macrolimitsdet0[tbinnr+1]]
+    microtimesdet1 = microtimesin[macrolimitsdet1[tbinnr]:macrolimitsdet1[tbinnr+1]]
+    # microtimes=
+    macrotimescycledet0 = macrotimescyclein[macrolimitsdet0[tbinnr]:macrolimitsdet0[tbinnr+1]]
+    macrotimescycledet1 = macrotimescyclein[macrolimitsdet0[tbinnr]:macrolimitsdet0[tbinnr+1]]
+    nphots=nphotsdet0[tbinnr]+nphotsdet1[tbinnr]
     if nphots>limitex:# and taulist[tbinnr]<lifetimeexciton:
 
         microtimes_ex[nrex:nrex+nphots]=microtimes
-        macrotimescycle_ex[nrex:nrex+nphots]=macrotimescycle
+        macrotimescycle_exdet0[nrex:nrex+nphots]=macrotimescycledet0
+        macrotimescycle_exdet1[nrex:nrex+nphots]=macrotimescycledet1
         bins_ex+=1
         nrex+=nphots
         timeexciton[tbinnr]=1
 
 
-    elif nphots>limittrlow and nphots<limittrhigh and taulist[tbinnr]<10 and tauav[tbinnr]>1:# and taulist[tbinnr]>0.05: #and (photonspbin[tbinnr]-7)/taulist[tbinnr]>112/28
+    elif nphots>limittrlow and nphots<limittrhigh and taulist0[tbinnr]<10 and tauavdet0[tbinnr]>1 and taulist1[tbinnr]<10 and tauavdet1[tbinnr]>1:# and taulist[tbinnr]>0.05: #and (photonspbin[tbinnr]-7)/taulist[tbinnr]>112/28
         # print('found')
 
 #    elif photonspbin[tbinnr]>limittrlow and photonspbin[tbinnr]<limittrhigh and taulist[tbinnr]>0.5 and (photonspbin[tbinnr]-10)/taulist[tbinnr]>505/27:
-        microtimes_trion[nrtrion:nrtrion+nphots]=microtimes
-        macrotimescycle_trion[nrtrion:nrtrion+nphots]=macrotimescycle
+        microtimes_triondet0[nrtriondet0:nrtriondet0+nphotsdet0]=microtimesdet0
+        microtimes_triondet1[nrtriondet1:nrtriondet1+nphotsdet1]=microtimesdet1
+        
+        macrotimescycle_triondet0[nrtriondet0:nrtriondet0+nphotsdet0]=macrotimescycledet0
+        macrotimescycle_triondet1[nrtriondet1:nrtriondet1+nphotsdet1]=macrotimescycledet1
         bins_trion+=1
-        nrtrion+=nphots
+        nrtriondet0+=nphotsdet0
+        nrtriondet1+=nphotsdet1
         timetrion[tbinnr]=1
         for k in range(len(microtimes)):
-            if microtimes[k]*dtmicro>22e-9 and microtimes[k]*dtmicro<50e-9:
+            if microtimesdet0[k]*dtmicro>22e-9 and microtimesdet1[k]*dtmicro>22e-9 and microtimesdet0[k]*dtmicro<50e-9 and microtimesdet1[k]*dtmicro<50e-9:
                 # print('found')
-                microtimes_trlate[nrtrlate]=microtimes[k]
-                macrotimescycle_trlate[nrtrlate]=macrotimescycle[k]
+                microtimes_trlatedet0[nrtrlate]=microtimesdet0[k]
+                microtimes_trlatedet1[nrtrlate]=microtimesdet1[k]
+                
+                macrotimescycle_trlatedet0[nrtrlate]=macrotimescycledet0[k]
+                macrotimescycle_trlatedet1[nrtrlate]=macrotimescycledet1[k]
                 nrtrlate+=1
             if microtimes[k]*dtmicro>9e-9 and microtimes[k]*dtmicro<15e-9:
                 # print('found')
@@ -1990,14 +2398,19 @@ for tbinnr in range(len(limits)-1):
                 nrtrearly+=1
     # elif photonspbin[tbinnr]>limittrlow and photonspbin[tbinnr]<limitex and tauav[tbinnr]>25 :
     elif nphots<limitoffhigh:# and taulist[tbinnr]<10:
-        microtimes_off[nroff:nroff+nphots]=microtimes
-        macrotimescycle_off[nroff:nroff+nphots]=macrotimescycle
+        microtimes_offdet0[nroffdet0:nroffdet0+nphotsdet0]=microtimesdet0
+        microtimes_offdet1[nroffdet1:nroffdet1+nphotsdet1]=microtimesdet1
+        macrotimescycle_offdet0[nroffdet0:nroffdet0+nphotsdet0]=macrotimescycledet0
+        macrotimescycle_offdet1[nroffdet1:nroffdet1+nphotsdet1]=macrotimescycledet1
         bins_off+=1
-        nroff+=nphots
-    if nphots>limitex and taulist[tbinnr]>60:
+        nroffdet0+=nphotsdet0
+        nroffdet1+=nphotsdet1
+    if nphots>limitex and taulist0[tbinnr]>60 and taulist1[tbinnr]>60:
         # print('found')
-        microtimes_mid[nrmid:nrmid+nphots]=microtimes
-        macrotimescycle_mid[nrmid:nrmid+nphots]=macrotimescycle
+        microtimes_middet0[nrmiddet0:nrmiddet0+nphotsdet0]=microtimesdet0
+        macrotimescycle_middet0[nrmiddet0:nrmiddet0+nphotsdet0]=macrotimescycledet0
+        microtimes_middet1[nrmiddet1:nrmiddet1+nphotsdet1]=microtimesdet1
+        macrotimescycle_middet1[nrmiddet1:nrmiddet1+nphotsdet1]=macrotimescycledet1
         bins_mid+=1
         nrmid+=nphots
 microtimes_ex = microtimes_ex[:nrex]
@@ -2026,121 +2439,22 @@ print('Rad lifetime ratio:'+str(fittrion[1]/bins_trion/(fitex[1]/bins_ex)))
 #plt.xlim([0,220])
 # plt.legend(['High cps','High cps fit','Mid cps','Mid cps fit','Low cps','Low cps fit'])
 
-#%% temp
-
-limitex=500
-limittrlow=42
-limittrhigh=80
-
-# microtimesin=microtimesblue
-# macrotimesin=macrotimesblue
-macrotimescyclein=data[19]
-microtimes_ex= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_ex= np.zeros(len(data[2]),dtype='int64')
-nrex=0
-bins_ex=0
-microtimes_trion= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_trion= np.zeros(len(data[2]),dtype='int64')
-nrtrion=0
-bins_mid=0
-microtimes_mid= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_mid= np.zeros(len(data[2]),dtype='int64')
-nrmid=0
-bins_off=0
-microtimes_off= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_off= np.zeros(len(data[2]),dtype='int64')
-nroff=0
-bins_trion=0
-nrtrlate=0
-bins_trlate=0
-microtimes_trlate= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_trlate= np.zeros(len(data[2]),dtype='int64')
-nrtrearly=0
-bins_trearly=0
-microtimes_trearly= np.zeros(len(data[2]),dtype='int64')
-macrotimescycle_trearly= np.zeros(len(data[2]),dtype='int64')
-for tbinnr in range(len(limits)-1):
-    nphots = limits[tbinnr+1]-limits[tbinnr]
-    microtimes = microtimesin[limits[tbinnr]:limits[tbinnr+1]]
-    macrotimescycle = macrotimescyclein[limits[tbinnr]:limits[tbinnr+1]]
-
-    if nphots>limitex and taulist[tbinnr]<50:
-
-        microtimes_ex[nrex:nrex+nphots]=microtimes
-        macrotimescycle_ex[nrex:nrex+nphots]=macrotimescycle
-        bins_ex+=1
-        nrex+=nphots
-
-
-    elif nphots>limittrlow and nphots<limittrhigh and taulist[tbinnr]<10 and tauav[tbinnr]>1:# and taulist[tbinnr]>0.05: #and (photonspbin[tbinnr]-7)/taulist[tbinnr]>112/28
-
-#    elif photonspbin[tbinnr]>limittrlow and photonspbin[tbinnr]<limittrhigh and taulist[tbinnr]>0.5 and (photonspbin[tbinnr]-10)/taulist[tbinnr]>505/27:
-        microtimes_trion[nrtrion:nrtrion+nphots]=microtimes
-        macrotimescycle_trion[nrtrion:nrtrion+nphots]=macrotimescycle
-        bins_trion+=1
-        nrtrion+=nphots
-        for k in range(len(microtimes)):
-            if microtimes[k]*dtmicro>22e-9 and microtimes[k]*dtmicro<50e-9:
-                # print('found')
-                microtimes_trlate[nrtrlate]=microtimes[k]
-                macrotimescycle_trlate[nrtrlate]=macrotimescycle[k]
-                nrtrlate+=1
-            if microtimes[k]*dtmicro>9e-9 and microtimes[k]*dtmicro<15e-9:
-                # print('found')
-                microtimes_trearly[nrtrearly]=microtimes[k]
-                macrotimescycle_trearly[nrtrearly]=macrotimescycle[k]
-                nrtrearly+=1
-    # elif photonspbin[tbinnr]>limittrlow and photonspbin[tbinnr]<limitex and tauav[tbinnr]>25 :
-    elif nphots<200 and taulist[tbinnr]<10:
-        microtimes_off[nroff:nroff+nphots]=microtimes
-        macrotimescycle_off[nroff:nroff+nphots]=macrotimescycle
-        bins_off+=1
-        nroff+=nphots
-    if nphots>limitex and taulist[tbinnr]>60:
-        # print('found')
-        microtimes_mid[nrmid:nrmid+nphots]=microtimes
-        macrotimescycle_mid[nrmid:nrmid+nphots]=macrotimescycle
-        bins_mid+=1
-        nrmid+=nphots
-microtimes_ex = microtimes_ex[:nrex]
-macrotimescycle_ex = macrotimescycle_ex[:nrex]
-microtimes_trion = microtimes_trion[:nrtrion]
-macrotimescycle_trion = macrotimescycle_trion[:nrtrion]
-microtimes_mid = microtimes_mid[:nrmid]
-macrotimescycle_mid = macrotimescycle_mid[:nrmid]
-microtimes_off = microtimes_off[:nroff]
-macrotimescycle_off = macrotimescycle_off[:nroff]
-microtimes_trlate = microtimes_trlate[:nrtrlate]
-macrotimescycle_trlate = macrotimescycle_trlate[:nrtrlate]
-microtimes_trearly = microtimes_trearly[:nrtrearly]
-macrotimescycle_trearly = macrotimescycle_trearly[:nrtrearly]
-#% Lifetime of Exciton and Trion
-plt.figure()
-fitex=rpl.GetLifetime(microtimes_ex,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_ex/(Texp/binwidth),method='ML_c')
-# fitex=GetLifetime(microtimes_ex,dtmicro,dtmacro,100e-9,tstart=-1,plotbool=True,ybg=bins_ex*40*binwidth/np.max(microtimesblue),method='ML_c')
-fittrion=rpl.GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_trion/(Texp/binwidth),method='ML_c')
-# fittrion=GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotbool=True,ybg=bins_trion*40*binwidth/np.max(microtimesblue),method='ML_c')
-
-# fitoff=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,10e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_trion/(Texp/binwidth),method='ML_c')
-fitmid=rpl.GetLifetime(microtimes_mid,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_mid/(Texp/binwidth),method='ML_c')
-
-print('Rad lifetime ratio:'+str(fittrion[1]/bins_trion/(fitex[1]/bins_ex)))
-#plt.xlim([0,220])
-# plt.legend(['High cps','High cps fit','Mid cps','Mid cps fit','Low cps','Low cps fit'])
-
 #%%
-histsettings=(400,530,100)
+histsettings=(440,575,100)
 plt.figure()
 exspecex=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_ex*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
 plt.plot(exspecex[0],exspecex[1]/np.sum(exspecex[1])/interprefspec(exspecex[0]),label='Bright')
 exspectr=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_trion*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
 plt.plot(exspectr[0],exspectr[1]/np.sum(exspectr[1])/interprefspec(exspectr[0]),label='Gray')
+# exspecoff=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_mid*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+# plt.plot(exspecoff[0],exspecoff[1]/np.sum(exspecoff[1])/interprefspec(exspecoff[0]),label='Dark')
+
 plt.legend()
 # exspec=rpl.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_mid*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
 # plt.plot(exspec[0],(exspec[1]/np.sum(exspec[1])))
 plt.xlabel('Excitation wavelength')
 plt.ylabel('Intensity')
-plt.title('Exciton and trion excitation spectra')
+plt.title('Excitation spectra')
 
 #%% emission spectrum when in trion state
 indextrion = np.argwhere(timetrion==1).ravel()
@@ -2223,9 +2537,9 @@ plt.ylim(-1,1)
 
 #%% Plot FLID map
 plt.figure()
-plt.hist2d(tauav,photonspbin,bins=(50,int(np.max(photonspbin))),range=[[0,50],[0,np.max(photonspbin)]],norm=mcolors.LogNorm())
+plt.hist2d(tauavtot,photonspbintot,bins=(50,int(np.max(photonspbintot))),range=[[0,50],[0,np.max(photonspbintot)]],norm=mcolors.LogNorm())
 # plt.hist2d(taulist2,photonspbin,(50,int(np.max(photonspbin))),range=[[0,50],[0,np.max(photonspbin)]],norm=mcolors.LogNorm())
-plt.title('FLID map comp2')
+plt.title('FLID map')
 plt.ylabel('Counts per bin')
 plt.ylabel('Counts per '+str(int(binwidth*1000))+' ms bin')
 plt.xlabel('Lifetime (ns)')
