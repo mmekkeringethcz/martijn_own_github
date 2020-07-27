@@ -889,7 +889,8 @@ def MaxLikelihoodFunction(params,xdata,ydata,const,expterms):
     return(-E) # This function needs to be MINIMIZED (because of the minus sign) to have the maximum likelihood fit!
 MaxLikelihoodFunction_c = nb.jit(nopython=True)(MaxLikelihoodFunction)
 
-def GetLifetime(microtimes,dtmicro,dtmacro,dtfit,tstart=-1,histbinmultiplier=1,ybg=0,plotbool=False,method='ML',expterms=1,timemax=0,axhandle='None'): 
+
+def GetLifetime(microtimes,dtmicro,dtmacro,dtfit,tstart=-1,histbinmultiplier=1,ybg=0,plotbool=False,method='ML',expterms=1): 
     # microtimes = microtimes array with photon events
     # dtfit is the time interval considered for the fit [s], tstart [s] is the starting point of the fit within the histogram. If set to -1 it starts at the time with the highest intensity.
     # histbinmultiplier is a multiplier. actual binwidth is given as histbinmultiplier*dtmicro[s]
@@ -899,17 +900,13 @@ def GetLifetime(microtimes,dtmicro,dtmacro,dtfit,tstart=-1,histbinmultiplier=1,y
     [ylist,xlist] = np.histogram(microtimes,int(dtmacro/(dtmicro*histbinmultiplier)),[0,int(dtmacro/dtmicro)])
     tlist = (xlist[:-1]+0.5*(xlist[1]-xlist[0]))*dtmicro*1e9
 #    print(histbinmultiplier)
-    if timemax>0:
-      tlist=tlist[tlist<timemax]
-      lenylist=len(tlist)
-      ylist=ylist[0:lenylist]
     istart = int(tstart/dtmicro) #find index of maximum element in ylist
     if istart < 0:
         istart = ylist.argmax()
     iend = istart + int(dtfit/(dtmicro*histbinmultiplier))
     if iend>len(tlist):
         iend = len(tlist) 
-  
+        
     # get background (by simply looking at last ten data points) and substract from intensity data.
     if ybg < 0:
         ybg = np.mean(ylist[-100:]) # mean background per histogram bin bin of length
@@ -925,16 +922,13 @@ def GetLifetime(microtimes,dtmicro,dtmacro,dtfit,tstart=-1,histbinmultiplier=1,y
         print('Error: invalid fit method')
     
     if plotbool == True:
-        if axhandle==None:
-            plt.xlabel('time (ns)')
-            plt.ylabel('')
-            plt.semilogy(tlist,ylist,'.',tlist[istart:iend],np.sum(np.array([A1fit[k]*np.exp(-(tlist[istart:iend]-tlist[istart])/tau1fit[k])+ybg*(k<1) for k in range(expterms)]),0))
-            plt.semilogy([tlist[0],tlist[-1]],[ybg,ybg],'k--')
-            plt.show()
-        else:
-            plt.semilogy(tlist,ylist,'.',tlist[istart:iend],np.sum(np.array([A1fit[k]*np.exp(-(tlist[istart:iend]-tlist[istart])/tau1fit[k])+ybg*(k<1) for k in range(expterms)]),0))
-            plt.semilogy([tlist[0],tlist[-1]],[ybg,ybg],'k--')
+        plt.xlabel('time (ns)')
+        plt.ylabel('')
+        plt.semilogy(tlist,ylist,'.',tlist[istart:iend],np.sum(np.array([A1fit[k]*np.exp(-(tlist[istart:iend]-tlist[istart])/tau1fit[k])+ybg*(k<1) for k in range(expterms)]),0))
+        plt.semilogy([tlist[0],tlist[-1]],[ybg,ybg],'k--')
+        plt.show()
         print('Fitted lifetime:',tau1fit,'ns; Amax:',A1fit)
+
 
     # if plotbool == True:
     #     # yest = np.array([Aest[k]*np.exp(-(xdata[i]-xdata[0])/tauest[k])+bgcpb for i in range(len(xdata))])
