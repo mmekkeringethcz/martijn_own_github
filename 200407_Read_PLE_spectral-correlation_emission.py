@@ -58,9 +58,9 @@ Debugmode=False     #Set to true to make plots in the individual sections of the
 basefolders={'DESKTOP-BK4HAII':'C:/Users/rober/Documents/Doktorat/Projects/SingleParticle_PLE/Andor Spectrometer/',
              'HP_Probook':'E:/Martijn/ETH/results/',
              'mavt-omel-w004w':'E:/LAB_DATA/Robert/'} #dictionary which base folder to use on which computer. For you this probably would be everything until 
-folder = basefolders[socket.gethostname()]+'20200612_HR148_RT/'
+folder = basefolders[socket.gethostname()]+'20200630_CdSe_cryo_HR2/'
 
-filename ='HR148_4p87MHz_200Hz_500mVpp_60mVoffset_QD2_ND1'
+filename ='HR2_QD7_9p734MHz_200Hz_260mVpp_n20mVoff_ND0'
 
 settingsfile= filename+'_settings'
 HHsettings=rpl.load_obj(settingsfile, folder )
@@ -154,8 +154,8 @@ print('Voffset =',Voffset,'filename=',filename)
 reffile = str(filename.split('MHz')[0].split('_')[-1])
 reffolder = folder#basefolders[socket.gethostname()]+'20200622_Perovskites_cryo/calibrationArio$/'
 # calibspec = rpl.importASC(reffolder+'backref_77p87MHz_200Hz_200mVpp_145mVoff_SP_no450LP.asc')
-calibspec = rpl.importASC(reffolder+'backref_4p86MHz_200Hz_500mVpp_60mVoffset.asc')
-# calibspec = rpl.importASC(reffolder+'backref_9p734MHz_200Hz_500mVpp_60mVoff_ND0.asc')
+# calibspec = rpl.importASC(reffolder+'backref_4p86MHz_200Hz_500mVpp_60mVoffset.asc')
+calibspec = rpl.importASC(reffolder+'backref_9p734MHz_200Hz_500mVpp_60mVoff_ND0.asc')
 
 # plt.figure()
 # plt.imshow(calibspec[0],extent=[np.min(calibspec[1]),np.max(calibspec[1]),np.max(calibspec[1]),np.min(calibspec[1])])
@@ -307,82 +307,7 @@ if Debugmode==True:
 # plt.ylabel('Intensity')
 # plt.title('binning = ' +str(binning))
     
-    #%% temp
-binning = 1/10 #binning is in units of seconds (s)
-# binning = 1/10
-expplottime = data[17][-1]*dtmacro
-excitationbegin = data[17][0]*dtmacro
-# binning = 1 #binning is in units of seconds (s)
-wavelengthrangemin,wavelengthrangemax = 400,593
-wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
-wavelengthrange =matchrange
-# wavelengthrange  = matchrange
-histogrambin=80 #number is irrelevant for excitation and emission correlation. Fixed that.
-# histogrambin= int(np.divide((wavelengthrangemax-wavelengthrangemin),(np.max(Wavelengthspec)-np.min(Wavelengthspec)))*1/dtmacro/200/40) #200 is frequency of glvo cycle
-firstphotonlist = rpl.HistPhotons(times0*dtmicro,binning,Texp)
-# firstphotonlist = rpl.HistPhotons(times0*dtmicro,binning,expplottime)
-binnedintensities = np.zeros((histogrambin,len(firstphotonlist)))
-binnedwavelengths = np.zeros((histogrambin,len(firstphotonlist)))
 
-threshlow=1/Freq/4
-threshhigh=3/Freq/4
-macrocyclelist=data[19]
-#Sort microtimes in two halves
-Z = np.logical_and(threshlow<(macrocyclelist*dtmacro),(macrocyclelist*dtmacro)<= threshhigh)
-tforward=macrocyclelist[np.where(Z)]
-tbackward=macrocyclelist[np.where(np.logical_not(Z))]
-
-    
-for i in range(len(firstphotonlist)-1):
-    wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-    [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*data[19][firstphotonlist[i]:firstphotonlist[i+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogrambin,range=wavelengthrange)
-    binnedwavelengths[:,i]= wavelengthstempavg
-    binnedintensities[:,i]=intensitiestemp#/interprefspec(wavelengthstempavg)
-    
-    
-plt.figure()
-plt.imshow(binnedintensities,extent=[0,Texp,np.max(binnedwavelengths[:,1]),np.min(binnedwavelengths[:,1])])
-plt.gca().invert_yaxis()
-plt.ylabel('Excitation wavelength (nm)')
-plt.xlabel('time (s)')
-plt.title('binning = ' +str(binning))
-plt.colorbar()
-#%% excitation correlation
-
-taus=[0,1,2,10,20]
-plot = 'corr'
-plot = 'cov'
-
-Excitationdata1 = binnedintensities
-Excitationdata2 = binnedintensities
-
-
-excitationcovariance,excitationnormalization,excitationcorrelation = rplm.pearsoncorrelation(Excitationdata1,Excitationdata2,binnedwavelengths[:,1],binnedwavelengths[:,1],taus=taus,plot=plot)
-
-
-#%%focus on the 575 peak
-
-plot = 'corr'
-taus = [0,1,10,100]
-taus = [0,1,2,5,10,20]
-# taus = np.arange(10)
-# wavmin = 140
-wavmin = 1
-binnedwavelengths[wavmin]
-
-# wavmax = 180
-wavmax = len(binnedwavelengths)
-binnedwavelengths[wavmax-1]
-
-timemin = 0
-timemax = 1100
-
-excitationdata1 = binnedintensities[wavmin:wavmax+1,timemin:timemax]
-excitationdata2 = binnedintensities[wavmin:wavmax+1,timemin:timemax]
-
-
-excitationcovariance,excitationnormalization,excitationcorrelation = rplm.pearsoncorrelation(excitationdata1,excitationdata2,binnedwavelengths[:,1][wavmin:wavmax+1],binnedwavelengths[:,1][wavmin:wavmax+1],taus=taus,plot=plot)
-# excitationcovariance,excitationnormalization,excitationcorrelation = spectralcorrelation(excitationdata1,excitationdata2,binnedwavelengths[:,1][wavmin:wavmax+1],binnedwavelengths[:,1][wavmin:wavmax+1],taus=taus,plot=plot)
 #%% Read emission spectra
     
 emissionspec = rpl.importASC(folder+filename+'.asc')
@@ -528,18 +453,6 @@ elif Yfiltered.shape[1]>=data[26].shape[0]:
     a=len(data[26])
     # temp[:,:a]=Yfiltered
     Yfiltered=Yfiltered[:,:a]
-#%% Spectral correlation of noise
-        #done by selecting window where the QD does no emit. Hope to see that everything is as zero as it can be
-        #maps look really weird
-test = np.mean(emissionspec[0][0:30],axis=0)
-test=test[0:-1,:]
-taus=[0,1,2]
-
-
-Emissiondata1 = test
-Emissiondata2 = test
-
-emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata1,Emissiondata2,wavelengths,wavelengths,taus=taus,plot=plot)
 
 #%% Spectral correlation of emission using covariances and pair counting
     # up til now only postselection
@@ -800,71 +713,7 @@ ax[1].invert_yaxis()
 
 #select excitation spectra based on trigger events from first photons in the emission cycle
 #can do excitation emission correlation only on those. Forward and backward sweep combined
-#%%
-plt.figure()
-idxmin=660
-idxmax=690
-plt.plot(excitationdata1[1][:,2],np.sum(excitationdata[:,idxmin:idxmax],axis=1),label='Gray')
-idxmin=250
-idxmax=300
-plt.plot(excitationdata1[1][:,2],np.sum(excitationdata[:,idxmin:idxmax],axis=1),label='Bright')
-#%% fit only part of emission and then overplot with sampled function
-emwavelrange=(605,640)
-emwavelindices=(np.argmin(np.abs(wavelengths-emwavelrange[0])),np.argmin(np.abs(wavelengths-emwavelrange[1])))
 
-
-timeaverage=timeaverage.ravel()
-
-test = timeaverage[emwavelindices[0]:emwavelindices[1]]
-testwavelengths=wavelengths[emwavelindices[0]:emwavelindices[1]]
-
-lormod = LorentzianModel(prefix='Lor_')   
-
-pars = lormod.guess(test, x=testwavelengths)
-
-constmod = ConstantModel(prefix='Const_') 
-pars.update(constmod.make_params())
-
-mod = lormod + constmod
-
-init = mod.eval(pars, x=testwavelengths)
-out = mod.fit(test, pars, x=testwavelengths)
-
-
-plt.figure()
-plt.plot(testwavelengths,test,label='experimental data')
-# plt.plot(wavelengths, out.init_fit, 'k--', label='initial fit')
-plt.plot(testwavelengths,out.best_fit,label='best fit')
-plt.xlabel('Wavelength (nm)')
-plt.ylabel('Intensity')
-plt.legend(loc=0)
-
-print(out.fit_report())
-fitreport=out.fit_report()
-
-def lorentzian(x,amplitude,mu,sigma,background):
-    lor = amplitude*2/(2*np.pi)*sigma/((x-mu)**2+sigma**2)+background
-    return lor
-
-
-
-amplitude = float(fitreport.split('amplitude:')[-1].split('+')[0])
-# amplitudeerr = float(fitreport.split('amplitude:')[-1].split('+/-')[1].split('(')[0])
-center = float(fitreport.split('center:')[-1].split('+')[0])
-# centererr = float(fitreport.split('center:')[-1].split('+/-')[1].split('(')[0])
-sigma = float(fitreport.split('sigma:')[-1].split('+')[0])
-# sigmaerr = float(fitreport.split('sigma:')[-1].split('+/-')[1].split('(')[0])
-background = 454
-x=testwavelengths
-
-lorplot= lorentzian(x,amplitude,center,sigma,background)
-plt.figure()
-plt.plot(x,lorplot)
-plt.plot(wavelengths,timeaverage)
-
-plt.figure()
-plt.plot(x,lorplot)
-plt.plot(testwavelengths,test)
 #%% #select particular exctiation wavelength based on chosen range emission wavelengths
 emwavelrange = np.array([(606.5,609.5),(611.5,614.5),(615,618)])
 emwavelrange = np.array([(596,601),(601,606)])
