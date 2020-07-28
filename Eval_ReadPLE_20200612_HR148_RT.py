@@ -252,14 +252,14 @@ ax4.set_ylabel('Intensity')
 
 #%% Lifetime vs Intensity
 # MaxLikelihoodFunction_c = nb.jit(nopython=True)(MaxLikelihoodFunction)
-# macrotimesin=data[3]
-macrotimesin=data[25]
+macrotimesin=data[3]
+# macrotimesin=data[25]
 microtimesin=data[2]
 #microtimesin=microtimesblue
 #macrotimesin=macrotimesblue
 #macrotimescyclein=macrotimescycleblue
 binwidth=0.01
-# macrolimits = rpl.HistPhotons(macrotimesin*dtmacro,binwidth,Texp)
+macrolimits = rpl.HistPhotons(macrotimesin*dtmacro,binwidth,Texp)
 macrolimits=macrotimesin
 limits=macrolimits
 taulist=np.zeros(len(limits)-1)
@@ -364,10 +364,10 @@ plt.plot(histdata[0],histdata[1])
 plt.xlabel('Photons per '+str(int(binwidth*1000))+' ms bin')
 plt.ylabel('Occurence')
 #%% Limits
-limitex=5000
-limittrlow=420
-limittrhigh=800
-limitoffhigh=2000
+limitex=500
+limittrlow=42
+limittrhigh=80
+limitoffhigh=20
 # microtimesin=microtimesblue
 # macrotimesin=macrotimesblue
 macrotimescyclein=data[19]
@@ -462,7 +462,7 @@ fittrion=rpl.GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotboo
 # fittrion=GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotbool=True,ybg=bins_trion*40*binwidth/np.max(microtimesblue),method='ML_c')
 
 # fitoff=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,10e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_trion/(Texp/binwidth),method='ML_c')
-fitmid=rpl.GetLifetime(microtimes_mid,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_mid/(Texp/binwidth),method='ML_c')
+fitmid=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_mid/(Texp/binwidth),method='ML_c')
 
 print('Rad lifetime ratio:'+str(fittrion[1]/bins_trion/(fitex[1]/bins_ex)))
 #plt.xlim([0,220])
