@@ -37,6 +37,9 @@ import re
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from lmfit.models import LorentzianModel, GaussianModel, VoigtModel, LinearModel, ConstantModel
+from lmfit.models import PolynomialModel
+from lmfit import Model
+
 import socket #enables to find computer name to make less of a mess with folders
 #%matplotlib auto
 sys.path.append('E:/Martijn/ETH/scripts/github/martijn_own_github/repoo/apd_ple')
@@ -109,7 +112,7 @@ else:
 # Voffset=0
 #this dataset and correctionw as in folder E:/Martijn/ETH/results/20200630_CdSe_cryo_HR2/'
 if folder=='E:/Martijn/ETH/results/20200630_CdSe_cryo_HR2':
-    
+    #this folder was chosen because it had the most complete dataset
     files=['backref_9p734MHz_0Hz_0mVpp_20mVoff_ND0.asc','backref_9p734MHz_0Hz_0mVpp_60mVoff_ND0.asc','backref_9p734MHz_0Hz_0mVpp_100mVoff_ND0.asc','backref_9p734MHz_0Hz_0mVpp_140mVoff_ND0.asc','backref_9p734MHz_0Hz_0mVpp_180mVoff_ND0.asc','backref_9p734MHz_0Hz_0mVpp_n20mVoff_ND0.asc','backref_9p734MHz_0Hz_0mVpp_n60mVoff_ND0.asc','backref_9p734MHz_0Hz_0mVpp_n100mVoff_ND0.asc']
     Voltage=np.zeros(len(files))
     Wavelength_calib=np.zeros(len(files))
@@ -142,14 +145,15 @@ if Debugmode==True:
     plt.title('Voltage to wavelength')
     plt.figtext(7/10,7/10,'R_sq = '+str(r_value**2)[:6])
     
-# matchrange=(440,505)    
-matchrange=(500,600)
+# matchrange=(440,505)    #perovskites
+matchrange=(500,600)    #QDs. Real range does not matter so much
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,(-6e-4,-2e-4)) #coarse sweep
 tshift=rplm.Findtshift(Freq,Vpp,Voffset,calibcoeffs,data[19],dtmacro,matchrange,(tshift-1e-5,tshift+1e-5),Debugmode=True)
 
 
-print('Voffset =',Voffset,'filename=',filename)    
+print('Voffset =',Voffset,'filename=',filename)    #just to check whether the Voffset was real
 #%% laser intensity corrected
+#combines exctiation wavelength calibration on Andor spectrometer
     #done by sweeping laser spectrum over camera and divide QD em spectrum over normalized reference spectrum
 reffile = str(filename.split('MHz')[0].split('_')[-1])
 reffolder = folder#basefolders[socket.gethostname()]+'20200622_Perovskites_cryo/calibrationArio$/'
@@ -157,11 +161,7 @@ reffolder = folder#basefolders[socket.gethostname()]+'20200622_Perovskites_cryo/
 # calibspec = rpl.importASC(reffolder+'backref_4p86MHz_200Hz_500mVpp_60mVoffset.asc')
 calibspec = rpl.importASC(reffolder+'backref_9p734MHz_200Hz_500mVpp_60mVoff_ND0.asc')
 
-# plt.figure()
-# plt.imshow(calibspec[0],extent=[np.min(calibspec[1]),np.max(calibspec[1]),np.max(calibspec[1]),np.min(calibspec[1])])
-# plt.gca().invert_yaxis()
-# plt.figure()
-# plt.imshow(refspec[0])
+
 cmaxpos=np.argmax(np.mean(calibspec[0][:,:],1))
 refspecold=np.mean(calibspec[0][cmaxpos-5:cmaxpos+5,:],0)
 refspec=np.mean(calibspec[0][cmaxpos-5:cmaxpos+5,:],0)#-np.mean(refspecold[480:len(refspecold)])
@@ -176,24 +176,8 @@ plt.title('Spectrum of laser')
 plt.xlabel('Excitation wavelength (nm)')
 plt.ylabel('Intensity')
 
-
-
-# refspecwav = interprefspec(np.linspace(np.min(tlistforward),np.max(tlistforward),num=histbinnumber))
-
-# if Debugmode==True:
-#     plt.figure()
-#     plt.plot(calibspec[1],interprefspec(calibspec[1]))
-#     # plt.plot(tlistbackward,ylistbackward/interprefspec(calibspec[1]))
-    
-#     plt.figure()
-#     plt.plot(tlistforward,ylistforward/interprefspec(calibspec[1]))
-#     plt.plot(tlistbackward,ylistbackward/interprefspec(calibspec[1]))
-    
-#     plt.figure()
-#     plt.plot(Wavelengthspec,interprefspec(ylistspec))
-# #check whether this excitation regime actually extends in the excitation spectrum of the regime you are interested in.
 wavelengthrangemin,wavelengthrangemax = 430,595
-# wavelengthrangemin,wavelengthrangemax = 450,520
+
 wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
 histogrambin=247
 # wavelengthrange = matchrange
@@ -211,102 +195,6 @@ plt.plot(excspecwav[0],excspeccorr[0]/np.max(excspeccorr[0]))
 plt.title('Laser corrected') 
 plt.xlabel('Excitation wavelength (nm)')
 plt.ylabel('Intensity')
-
-
-    
-    
-#%% Generate binned excitation spectra
-#this generates part of unbinned excitation spectra. It does not resolve for forward and backward scan
-# binning = int(Texp/2) #binning is in units of seconds (s)
-binning = 1/10
-expplottime = data[17][-1]*dtmacro
-excitationbegin = data[17][0]*dtmacro
-# binning = 1 #binning is in units of seconds (s)
-wavelengthrangemin,wavelengthrangemax = 400,593
-wavelengthrange = (wavelengthrangemin,wavelengthrangemax)
-# wavelengthrange  = matchrange
-histogrambin=300 #number is irrelevant for excitation and emission correlation. Fixed that.
-# histogrambin= int(np.divide((wavelengthrangemax-wavelengthrangemin),(np.max(Wavelengthspec)-np.min(Wavelengthspec)))*1/dtmacro/200/40) #200 is frequency of glvo cycle
-# firstphotonlist = rpl.HistPhotons(times0*dtmicro,binning,Texp)
-firstphotonlist = rpl.HistPhotons(times0*dtmicro,binning,expplottime)
-binnedintensities = np.zeros((histogrambin,len(firstphotonlist)))
-binnedwavelengths = np.zeros((histogrambin,len(firstphotonlist)))
-
-
-
-    
-for i in range(len(firstphotonlist)-1):
-    [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*data[19][firstphotonlist[i]:firstphotonlist[i+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogrambin,range=wavelengthrange)
-    wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-    binnedwavelengths[:,i]= wavelengthstempavg
-    binnedintensities[:,i]=intensitiestemp/interprefspec(wavelengthstempavg)
-    
-# vmax=np.max(binnedintensities)
-# plt.figure()
-# plt.imshow(binnedintensities,extent=[excitationbegin,expplottime,np.max(binnedwavelengths[:,1]),np.min(binnedwavelengths[:,1])],vmax=vmax)
-# plt.gca().invert_yaxis()
-# plt.ylabel('Excitation wavelength (nm)')
-# plt.xlabel('time (s)')
-# plt.title('binning = ' +str(binning))
-# plt.colorbar()    
-
-if Debugmode==True:
-    plt.figure()
-    plt.plot(binnedwavelengths,binnedintensities)
-    plt.xlim(np.min(np.delete(binnedwavelengths.ravel(),np.where(binnedwavelengths.ravel()<=1))),np.max(binnedwavelengths))
-    plt.xlabel('Excitation Wavelength (nm)')
-    plt.ylabel('Intensity')
-    plt.title('binning = ' +str(binning) +'s')
-    # plt.title('Excitation spectrum')
-    
-    
-if Debugmode==True:    
-    plt.figure()
-    plt.imshow(binnedintensities,extent=[excitationbegin,expplottime,np.max(binnedwavelengths[:,1]),np.min(binnedwavelengths[:,1])])
-    plt.gca().invert_yaxis()
-    plt.ylabel('Excitation wavelength (nm)')
-    plt.xlabel('time (s)')
-    plt.title('binning = ' +str(binning))
-    plt.colorbar()
-    
-binnedintensitiesmean = np.mean(binnedintensities,axis=1) #timeaverage
-binnedintensitiesmean2 = np.mean(binnedintensities,axis=0) #wavelengthaverage
-binnedintensitiesmeancorr = np.zeros(binnedintensities.shape)
-binnedintensitiesmeancorr2 = np.zeros(binnedintensities.shape)
-
-for j in range(len(binnedintensities[0])):
-    # binnedintensitiesmeancorr[j,:] = binnedintensities[j,:] - binnedintensitiesmean[j]
-    binnedintensitiesmeancorr2[:,j] = binnedintensities[:,j] - binnedintensitiesmean2[j]
-    
-if Debugmode==True:
-    vmin = 0
-    vmax=10
-    vmax=np.max(binnedintensitiesmeancorr2)
-    plt.figure()
-    plt.imshow(binnedintensitiesmeancorr2,extent=[excitationbegin,expplottime,np.max(binnedwavelengths[:,1]),np.min(binnedwavelengths[:,1])],vmin=vmin,vmax=vmax)
-    plt.gca().invert_yaxis()
-    plt.ylabel('Excitation wavelength (nm)')
-    plt.xlabel('time (s)')
-    plt.title('binning = ' +str(binning))
-    # plt.ylim(0,10)
-    plt.colorbar()
-    
-    plt.figure()
-    plt.plot(binnedwavelengths,binnedintensitiesmean)
-    plt.xlim(np.min(np.delete(binnedwavelengths.ravel(),np.where(binnedwavelengths.ravel()<=1))),np.max(binnedwavelengths))
-    plt.xlabel('Excitation Wavelength (nm)')
-    plt.ylabel('Intensity')
-    plt.title('binning = ' +str(binning))
-    
-    plt.figure()
-    plt.plot(np.arange(data[17][0]*dtmacro,data[17][-1]*dtmacro,len(binnedintensities[0])),np.sum(binnedintensities,axis=0))
-    
-# plt.figure()
-# plt.plot(binnedwavelengths,binnedintensities)
-# plt.xlim(np.min(np.delete(binnedwavelengths.ravel(),np.where(binnedwavelengths.ravel()<=1))),np.max(binnedwavelengths))
-# plt.xlabel('Excitation Wavelength (nm)')
-# plt.ylabel('Intensity')
-# plt.title('binning = ' +str(binning))
     
 
 #%% Read emission spectra
@@ -319,7 +207,7 @@ numberypixels = len(emissionspec[0])
 numberspectra = len(emissionspec[0][0][0])
 
 
-#%%
+#%% producing Yfiltered and reorganizing spectra
 if len(emissionspec[0])==1:
     # Ybacktemp = np.argmin(np.sum(emissionspec[0][0],axis=1))
     # Ybackground=np.min(np.mean(emissionspec[0],axis=2))
@@ -406,7 +294,7 @@ else:
     Yfilteredwithbkg = Yfilteredinit[nrspec:nrfinspec]
     timeaveragewithbkg = timeaverageinit[nrspec:nrfinspec]
     
-    Yfiltered = Yfilteredwithbkg-Ybackground #Yfilterd is now background corrrected.
+    Yfiltered = Yfilteredwithbkg-Ybackground #Yfilterd is now background corrrected. May therefore have some negative values
     # Yfiltered[Yfiltered<=0]=0 #I think removing all the negative values should help the readability of the map
     timeaverage = timeaveragewithbkg-Ybackground
     
@@ -455,47 +343,10 @@ elif Yfiltered.shape[1]>=data[26].shape[0]:
     a=len(data[26])
     # temp[:,:a]=Yfiltered
     Yfiltered=Yfiltered[:,:a]
-#%%temp
+    
+    #Yfiltered is in bins of (wavelength/vertical,time/horizontal)
+#%%some fits
 fits=rplm.fitspectra(Yfiltered,wavelengths,0,len(Yfiltered[0]),'Lor',Debugmode=False)
-
-
-#%% Spectral correlation of emission using covariances and pair counting
-    # up til now only postselection
-
-
-# taus = np.arange(0,20,1)
-# taus=[0,5,10,100]
-taus=[0]
-
-# taus=[1]
-# taus=[1,2,10,15]
-# plot = 'corr'
-# plot='norm'
-plot='all'
-# plot = 'cov'
-# plot='none'
-
-# wavmin = 80
-# wavelengths[wavmin]
-
-# wavmax = 300
-# wavelengths[wavmax]
-
-timemin = 600
-timemax = 700
-Emissiondata1 = Yfiltered[:,timemin:timemax] #can get postselection by selecting only a particular window. Note that you need emissiondata to plot insteada of Yfiltered
-Emissiondata2 = Yfiltered[:,timemin:timemax]
-
-# Emissiondata1 = Yfiltered[wavmin:wavmax,15:23] #can get postselection by selecting only a particular window. Note that you need emissiondata to plot insteada of Yfiltered
-# Emissiondata2 = Yfiltered[wavmin:wavmax,15:23]
-
-# Emissiondata1 = Yfiltered[:,15:23] #can get postselection by selecting only a particular window. Note that you need emissiondata to plot insteada of Yfiltered
-# Emissiondata2 = Yfiltered[:,15:23]
-# emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Yfiltered,Yfiltered,wavelengths,wavelengths,taus=taus,plot=plot)
-# emissioncovariance,emissionnormalization,emissioncorrelation = spectralcorrelation(Yfiltered,Yfiltered,wavelengths,wavelengths,taus=taus,plot=plot)
-
-emissioncovariance,emissionnormalization,emissioncorrelation = rplm.pearsoncorrelation(Emissiondata1,Emissiondata2,wavelengths,wavelengths,taus=taus,plot=plot)
-emissioncovariance,emissionnormalization,emissioncorrelation = rplm.spectralcorrelation(Emissiondata1,Emissiondata2,wavelengths,wavelengths,taus=taus,plot=plot)
 
 #%% Generate binned excitation spectra for excitation emission correlation
 # #select particular exctiation wavelength based on chosen range emission wavelengths
@@ -503,14 +354,13 @@ emissioncovariance,emissionnormalization,emissioncorrelation = rplm.spectralcorr
 
 rawdata = data[25]
 originaldata= data[19]
-selecteddata=data[25]
 wavelengthrange = matchrange
 # wavelengthrange = (430,575)
 wavelengthrange = (500,575)
 histogram = 300
-excitationdata1 = rplm.histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram)
+excitationdata1 = rplm.histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,originaldata,wavelengthrange,histogram)
 originaldata= data[20]
-excitationdata2 = rplm.histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram)
+excitationdata2 = rplm.histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,originaldata,wavelengthrange,histogram)
 # excitationdata = histogramexcitationspectranorm(rawdata,originaldata,wavelengthrange,histogram,interprefspec)
 excitationdata=excitationdata1[0]+excitationdata2[0]
 # excitationdata=excitationdata2[0]
@@ -523,7 +373,7 @@ for j in range(len(excitationdata[0])):
 
 # maxexcitation = np.max(excitationdata[0])    
 vmax=np.max(excitationdata)
-# vmax=30
+vmax=60
 plt.figure()
 plt.imshow(excitationdata,extent=[data[26][0]*dtmacro,data[26][-1]*dtmacro,wavelengthrange[1],wavelengthrange[0]],vmin=0,vmax=vmax,aspect='auto')
 plt.gca().invert_yaxis()
@@ -2805,8 +2655,6 @@ plt.ylabel('Intensity')
 # plt.imshow(testdata[0])
 #%% fit absorption curve
 #at the moment it does not work and I do not know why. Based it a bit on the cubic background david wrote in his paper, but i can imagine that it is highly dependent on the starting positions
-from lmfit.models import PolynomialModel
-from lmfit import Model
 
 
 

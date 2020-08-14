@@ -791,7 +791,26 @@ def repeatvector(vecin,repeattimes):
 def repeatvecparallel(k):
     return(np.matlib.repmat(calibcoeffs[1]+InVoltage(data[19][range(data[22][k+tau],data[22][k+tau+1]-1)]*dtmacro,Freq,Vpp,Voffset,Verror)*calibcoeffs[0],len(data[22])-tau,1))
 
-def histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram):
+def histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,originaldata,wavelengthrange,histogram):
+#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
+#selecteddata is the index of the ones interested in the firstphotons listed
+#originaldata is all the photons collected
+        
+    binnedintensities = np.zeros((histogram,len(rawdata)))
+    binnedwavelengths = np.zeros((histogram,len(rawdata)))
+    
+    for i in range(len(rawdata)-1):
+        originaldataphotonlistindex = np.argmin(np.abs(rawdata-rawdata[i]))
+        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*originaldata[rawdata[i]:rawdata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
+        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
+        binnedwavelengths[:,i]= wavelengthstempavg
+        binnedintensities[:,i]=intensitiestemp
+     
+        
+    return binnedintensities,binnedwavelengths
+
+
+def histogramexcitationspectranew(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram):
 #rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
 #selecteddata is the index of the ones interested in the firstphotons listed
 #originaldata is all the photons collected
@@ -808,7 +827,6 @@ def histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawda
      
         
     return binnedintensities,binnedwavelengths
-
 #from here on functions I just copied from your functions file but just ran smoother when defined some differences for my pc
     
 #I defined involtage different with np logical instead of scipy logcial because I got errors all the time. Same then holds for Fintshift
