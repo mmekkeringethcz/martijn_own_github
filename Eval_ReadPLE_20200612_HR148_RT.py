@@ -42,6 +42,7 @@ sys.path.append('E:/Martijn/ETH/scripts/github/martijn_own_github/repoo/martijn_
 import Read_PLE_functions_Martijn as rplm
 InVoltagenew_c=nb.jit(nopython=True)(rplm.InVoltagenew)
 #%%
+Debugmode=False
 basefolders={'DESKTOP-BK4HAII':'C:/Users/rober/Documents/Doktorat/Projects/SingleParticle_PLE/Andor Spectrometer/',
              'HP_Probook':'E:/Martijn/ETH/results/',
              'mavt-omel-w004w':'E:/LAB_DATA/Robert/'} #dictionary which base folder to use on which computer. For you this probably would be everything until 

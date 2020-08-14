@@ -290,7 +290,7 @@ def GetLifetime(microtimes,dtmicro,dtmacro,dtfit,tstart=-1,histbinmultiplier=1,y
         plt.xlabel('time (ns)')
         plt.ylabel('')
         plt.semilogy(tlist,ylist,'.',tlist[istart:iend],np.sum(np.array([A1fit[k]*np.exp(-(tlist[istart:iend]-tlist[istart])/tau1fit[k])+ybg*(k<1) for k in range(expterms)]),0))
-        plt.semilogy([tlist[0],tlist[-1]],[ybg,ybg],'k--')
+       # plt.semilogy([tlist[0],tlist[-1]],[ybg,ybg],'k--')
         plt.show()
         print('Fitted lifetime:',tau1fit,'ns; Amax:',A1fit)
 
@@ -306,7 +306,7 @@ def GetLifetime(microtimes,dtmicro,dtmacro,dtfit,tstart=-1,histbinmultiplier=1,y
     # Amax is the maximum y-value
     Amax = np.max(ylist)
         
-    return(tau1fit,A1fit,ybg,istart)  
+    return(tau1fit,A1fit,ybg,istart,tlist,ylist)  
 
 def HistPhotons(photontlist,binwidth,Texp): # finds the index of the first photon in each bin. photontlist is in [s]
     histmax = Texp # experiment duration [s]
