@@ -829,6 +829,99 @@ def histogramexcitationspectranew(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,ra
     return binnedintensities,binnedwavelengths
 #from here on functions I just copied from your functions file but just ran smoother when defined some differences for my pc
     
+
+def timepostselectionlifetimes(beginbins,endbins,macrotimescyclein,microtimesin,limits,Debugmode=True):
+ 
+    # macrotimescycle_ex= np.zeros(len(microtimesin),dtype='int64')
+    if Debugmode==True:
+        plt.figure()
+    for idx in range(len(beginbins)):
+        beginbin=beginbins[idx]
+        endbin=endbins[idx]
+        nrex=0
+        bins_ex=0
+        macrotimescycle_ex= np.zeros(len(microtimesin),dtype='int64')
+        microtimes_ex= np.zeros(len(microtimesin),dtype='int64')
+        
+        for tbinnr in range(beginbin,endbin-1):
+            nphots = limits[tbinnr+1]-limits[tbinnr]
+            microtimes = microtimesin[limits[tbinnr]:limits[tbinnr+1]]
+            macrotimescycle = macrotimescyclein[limits[tbinnr]:limits[tbinnr+1]]
+            microtimes_ex[nrex:nrex+nphots]=microtimes
+            macrotimescycle_ex[nrex:nrex+nphots]=macrotimescycle
+            bins_ex+=1
+            nrex+=nphots
+    
+        macrotimescycle_ex = macrotimescycle_ex[:nrex]
+            
+    # plt.figure()
+        fitex=rpl.GetLifetime(microtimes_ex,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=False,ybg=lifetime[2]*bins_ex/(Texp/binwidth),expterms=2,method='ML_c')
+        fitex[5][0]=1
+    # if Debugmode==True:
+        # plt.figure()
+        plt.semilogy(fitex[4],fitex[5],label='bins='+str(beginbin)+'-'+str(endbin))
+        plt.title('Decay histograms')
+        plt.xlabel('time (ns)')
+        plt.ylabel('counts (a.u.)')
+        plt.legend()
+        
+    
+   
+    
+
+        
+def timepostselectionexcitation(beginbins,endbins,microtimesin,limits,histsettings,Debugmode=False):
+    
+    if Debugmode==True:
+        plt.figure()
+    for idx in range(len(beginbins)):
+        beginbin=beginbins[idx]
+        endbin=endbins[idx]
+        nrex=0
+        bins_ex=0
+        macrotimescycle_ex= np.zeros(len(microtimesin),dtype='int64')
+        microtimes_ex= np.zeros(len(microtimesin),dtype='int64')
+        for tbinnr in range(beginbin,endbin-1):
+            
+            nphots = limits[tbinnr+1]-limits[tbinnr]
+            microtimes = microtimesin[limits[tbinnr]:limits[tbinnr+1]]
+            macrotimescycle = macrotimescyclein[limits[tbinnr]:limits[tbinnr+1]]
+            microtimes_ex[nrex:nrex+nphots]=microtimes
+            macrotimescycle_ex[nrex:nrex+nphots]=macrotimescycle
+            bins_ex+=1
+            nrex+=nphots
+
+        macrotimescycle_ex = macrotimescycle_ex[:nrex]
+        exspecex=rplm.Easyhist(calibcoeffs[1]+rpl.InVoltagenew(macrotimescycle_ex*data[1],Freq,Vpp,Voffset,tshift)*calibcoeffs[0],histsettings[0],histsettings[1],histsettings[2])
+        exylistex=exspecex[1]/interprefspec(exspecex[0])
+        plt.plot(exspecex[0],exylistex/np.sum(exylistex),label='bins='+str(beginbin)+'-'+str(endbin))
+
+        plt.xlabel('Excitation wavelength')
+        plt.ylabel('Intensity')
+        plt.title('Excitation spectra')
+        plt.legend()
+        
+def timepostselectionemission(beginbins,endbins,Debugmode=True):
+    
+    if Debugmode==True:
+        plt.figure()
+    for idx in range(len(beginbins)):
+        beginbin=beginbins[idx]
+        endbin=endbins[idx]
+        # for tbinnr in range(beginbin,endbin-1):
+            
+        emdata=Yfiltered[:,beginbin:endbin]
+        # plt.plot(excitationdata[:,1],np.sum(excitationdata,axis=1)/np.sum(exspecex)/(interprefspec(excitationdata1[1][:,1])),label='Bright')
+        plt.plot(wavelengths,np.sum(emdata,axis=1)/np.sum(emdata),label='bins='+str(beginbin)+'-'+str(endbin))
+        # plt.plot(wavelengths,np.sum(emspectr,axis=1)/np.sum(emspectr),label='Gray')
+        # plt.plot(wavelengths,np.sum(emspecoff,axis=1)/interprefspec(wavelengths)/np.sum(emspecoff),label='Dark')
+        # plt.plot(excitationdata1[1][:,1],np.sum(exspecoff,axis=1)/np.sum(exspecoff)/interprefspec(excitationdata1[1][:,1]),label='Dark')
+        plt.title('Emission spectra')
+        plt.ylabel('Intensity')
+        plt.xlabel('Emission wavelength (nm)')
+        # plt.xlim(590,620)
+        plt.legend()
+            
 #I defined involtage different with np logical instead of scipy logcial because I got errors all the time. Same then holds for Fintshift
 def InVoltage(t,Freq,VPP,VOffset,Verror):
     Period=1/Freq
