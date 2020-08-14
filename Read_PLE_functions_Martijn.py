@@ -36,8 +36,11 @@ from lmfit.models import LorentzianModel, GaussianModel, VoigtModel, LinearModel
 import socket #enables to find computer name to make less of a mess with folders
 # %matplotlib auto
 
+
+#first functions I defined myself
+#mainly the fitting the timeaveraged stuff, correlation maps, cartesian to polar and fourier transforms of the correlation maps as also described in my reprot
 def fittimeaverage(timeaverage,wavelengths,model):
-    
+    #only done to extract minimum background from timeaverage
     if model=='Gauss':
         lormod = GaussianModel(prefix='Gauss_')
     elif model=='Lor':
@@ -68,33 +71,11 @@ def fittimeaverage(timeaverage,wavelengths,model):
     return np.min(out.best_fit)
 
 
-# def fitmultiple(binnedspectra,wavelenghts,model,parameters,guesses):
-#     if model=='Gauss':
-#         lormod = GaussianModel(prefix='Gauss_')
-#     elif model=='Lor':
-#         lormod = LorentzianModel(prefix='Lor_')
-#     elif model=='Voigt':
-#         lormod = VoigtModel(prefix='Voigt_')
-        
-    
-#     pars = lormod.guess(timeaverage, x=wavelengths)
-    
-#     for j in range(parameters-1):
-#         pars.update() = lormod.guess(timeaverage, x=wavelengths)
-#         modtemp=
-#         # mod
-        
-#     constmod = ConstantModel(prefix='Const_') 
-    
-#     pars.update(constmod.make_params())
-    
-#     mod = lormod + constmod
-    
-#     init = mod.eval(pars, x=wavelengths)
-#     out = mod.fit(timeaverage, pars, x=wavelengths)   
+ 
         
 def fitspectra(binnedspectra,wavelengths,startfit,endfit,model,Debugmode=False):
-
+# binnedspectra is the array of timebins and wavelength bins
+    #debugmode false/true for individual plots
     timeaverage = np.sum(binnedspectra,axis=1)
     if model=='Gauss':
         lormod = GaussianModel(prefix='Gauss_')
@@ -613,7 +594,57 @@ def wavelengthaverage(wavelengths,array):
     idx = (np.abs(wavelengths - wavaverage)).argmin()
     return wavaverage,idx,wavelengths[idx]
 
+
+
+def cartesiantopolarcorrelation(cartesiandata,origin,datapoints):
+    """transforms cartesian data into polar data on a rectangular grid."""
+    #converts cartesian covariance or correlation maps to 'rolled out' radii vs theta maps
+    if datapoints%2==0:
+        inputdata = np.zeros((len(cartesiandata),datapoints,datapoints))
+        thetas = np.linspace(-np.pi,np.pi,datapoints,endpoint=False)
+        radius = np.zeros((datapoints,datapoints))
+        theta = np.zeros((datapoints,datapoints))
+
+
+        for i in range(datapoints): #Radius and theta are only calculated once since the spectra all have the same radii and theta, because I chose the center point to be the same for all
+            for j in range(datapoints):
+                radius[i,j]=((i-int(datapoints/2))**2+(j-int(datapoints/2))**2)**(1/2)
+                theta[i,j] = np.arctan2(i-int(datapoints/2),j-int(datapoints/2)) #calculates the radii and thetas for the data set when centered around the value you are interested in
+         
+        maximalradius=int(np.max(radius)) 
+        indexx = np.zeros((len(cartesiandata),int(maximalradius),datapoints))
+        indexy = np.zeros((len(cartesiandata),int(maximalradius),datapoints))
+        radii = np.linspace(0,int(maximalradius),int(maximalradius))   
+        polardata = np.zeros((len(inputdata),int(maximalradius),datapoints))
+        
+        for t in range(len(inputdata)):
+            inputdata[t] = cartesiandata[t][origin-int(datapoints/2):origin+int(datapoints/2),origin-int(datapoints/2):origin+int(datapoints/2)]
+            for i in range(0,int(maximalradius)): #if you are going to want sampling that has an increased value in the radius driction you should implement a for loop here
+                
+                indexx[t,i,:] = radii[i]*np.cos(thetas)
+                indexy[t,i,:] = radii[i]*np.sin(thetas)
+            
+            # for i in range(0,int(maximalradius[t])):
+                for k in range(datapoints):
+                    polardata[t,i,k] = cartesiandata[t][int(round(indexx[t,i,k]))+origin][int(round(indexy[t,i,k]))+origin] # basically it searches for when the index matches pretty similarly the index around the origin.
+                    # temp1 = polardata[t,i,k] = cartesiandata[t][int(indexx[t,i,k])+origin][int(indexy[t,i,k])+origin] 
+                    # temp2 = polardata[t,i,k] = cartesiandata[t][int(indexx[t,i,k])+origin+1][int(indexy[t,i,k])+origin] 
+                    # temp3 = polardata[t,i,k] = cartesiandata[t][int(indexx[t,i,k])+origin][int(indexy[t,i,k])+origin+1]  
+                    # temp4 = polardata[t,i,k] = cartesiandata[t][int(indexx[t,i,k])+origin+1][int(indexy[t,i,k])+origin+1] 
+                    # polardata[t,i,k] = np.mean([temp1,temp2,temp3,temp4]) # so with these you can basically have an average of the closes values in the data. Some figures did not show significant changes
+    else:
+        raise ValueError('datapoints must be a multiple of two so that it is centered around even values')
+        
+    
+ 
+    return inputdata,polardata,thetas,maximalradius
+    #so it returns inputdata that is cropped symmetricaly around the chosen origin with the number of datapoints being an input parameter
+
+
+
 def fouriertransform(polardata,thetas):
+    #works based on thefunction cartesian to polar converting
+    #in the script some exampls were given
     if polardata.ndim==2: #this 
                 #this function works when the total amount of sampling points on the inner radius is the same as on the outer radius. This does not work when its not because the array then either gets distorted or you have a lot of zeros which may mess up the FT.
         
@@ -683,52 +714,9 @@ def fouriertransform(polardata,thetas):
 
 
 
-def cartesiantopolarcorrelation(cartesiandata,origin,datapoints):
-    """transforms cartesian data into polar data on a rectangular grid."""
-    #converts cartesian covariance or correlation maps to 'rolled out' radii vs theta maps
-    if datapoints%2==0:
-        inputdata = np.zeros((len(cartesiandata),datapoints,datapoints))
-        thetas = np.linspace(-np.pi,np.pi,datapoints,endpoint=False)
-        radius = np.zeros((datapoints,datapoints))
-        theta = np.zeros((datapoints,datapoints))
-
-
-        for i in range(datapoints): #Radius and theta are only calculated once since the spectra all have the same radii and theta, because I chose the center point to be the same for all
-            for j in range(datapoints):
-                radius[i,j]=((i-int(datapoints/2))**2+(j-int(datapoints/2))**2)**(1/2)
-                theta[i,j] = np.arctan2(i-int(datapoints/2),j-int(datapoints/2)) #calculates the radii and thetas for the data set when centered around the value you are interested in
-         
-        maximalradius=int(np.max(radius)) 
-        indexx = np.zeros((len(cartesiandata),int(maximalradius),datapoints))
-        indexy = np.zeros((len(cartesiandata),int(maximalradius),datapoints))
-        radii = np.linspace(0,int(maximalradius),int(maximalradius))   
-        polardata = np.zeros((len(inputdata),int(maximalradius),datapoints))
-        
-        for t in range(len(inputdata)):
-            inputdata[t] = cartesiandata[t][origin-int(datapoints/2):origin+int(datapoints/2),origin-int(datapoints/2):origin+int(datapoints/2)]
-            for i in range(0,int(maximalradius)): #if you are going to want sampling that has an increased value in the radius driction you should implement a for loop here
-                
-                indexx[t,i,:] = radii[i]*np.cos(thetas)
-                indexy[t,i,:] = radii[i]*np.sin(thetas)
-            
-            # for i in range(0,int(maximalradius[t])):
-                for k in range(datapoints):
-                    polardata[t,i,k] = cartesiandata[t][int(round(indexx[t,i,k]))+origin][int(round(indexy[t,i,k]))+origin] # basically it searches for when the index matches pretty similarly the index around the origin.
-                    # temp1 = polardata[t,i,k] = cartesiandata[t][int(indexx[t,i,k])+origin][int(indexy[t,i,k])+origin] 
-                    # temp2 = polardata[t,i,k] = cartesiandata[t][int(indexx[t,i,k])+origin+1][int(indexy[t,i,k])+origin] 
-                    # temp3 = polardata[t,i,k] = cartesiandata[t][int(indexx[t,i,k])+origin][int(indexy[t,i,k])+origin+1]  
-                    # temp4 = polardata[t,i,k] = cartesiandata[t][int(indexx[t,i,k])+origin+1][int(indexy[t,i,k])+origin+1] 
-                    # polardata[t,i,k] = np.mean([temp1,temp2,temp3,temp4]) # so with these you can basically have an average of the closes values in the data. Some figures did not show significant changes
-    else:
-        raise ValueError('datapoints must be a multiple of two so that it is centered around even values')
-        
-    
- 
-    return inputdata,polardata,thetas,maximalradius
-    #so it returns inputdata that is cropped symmetricaly around the chosen origin with the number of datapoints being an input parameter
-
 def wienerprocess(centerstart,scaling,length):
-    x = centerstart+scaling*np.cumsum(np.random.randn(length)) #wiener process is defined in the sense that brownian motion makes independent gaussian steps at each point. The cumulative sum of independent normal random varaibles represents brownian motion.
+    #wiener process is defined in the sense that brownian motion makes independent gaussian steps at each point. The cumulative sum of independent normal random varaibles represents brownian motion.
+    x = centerstart+scaling*np.cumsum(np.random.randn(length)) 
     # y = centerstart+scaling*np.cumsum(np.random.randn(length))
     return x
 
@@ -803,8 +791,27 @@ def repeatvector(vecin,repeattimes):
 def repeatvecparallel(k):
     return(np.matlib.repmat(calibcoeffs[1]+InVoltage(data[19][range(data[22][k+tau],data[22][k+tau+1]-1)]*dtmacro,Freq,Vpp,Voffset,Verror)*calibcoeffs[0],len(data[22])-tau,1))
 
+def histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram):
+#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
+#selecteddata is the index of the ones interested in the firstphotons listed
+#originaldata is all the photons collected
+        
+    binnedintensities = np.zeros((histogram,len(rawdata)))
+    binnedwavelengths = np.zeros((histogram,len(rawdata)))
+    
+    for i in range(len(rawdata)-1):
+        originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
+        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*originaldata[rawdata[i]:selecteddata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
+        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
+        binnedwavelengths[:,i]= wavelengthstempavg
+        binnedintensities[:,i]=intensitiestemp
+     
+        
+    return binnedintensities,binnedwavelengths
 
-
+#from here on functions I just copied from your functions file but just ran smoother when defined some differences for my pc
+    
+#I defined involtage different with np logical instead of scipy logcial because I got errors all the time. Same then holds for Fintshift
 def InVoltage(t,Freq,VPP,VOffset,Verror):
     Period=1/Freq
     Bool1=t<=Period/4
@@ -986,76 +993,11 @@ def MaxLikelihoodFit_c(tlist,ylist,istart,iend,bgcpb,plotbool=False,expterms=1):
         
     return(tauest,Aest)
 
-def histogramexcitationspectra(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram):
-#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
-#selecteddata is the index of the ones interested in the firstphotons listed
-#originaldata is all the photons collected
-        
-    binnedintensities = np.zeros((histogram,len(rawdata)))
-    binnedwavelengths = np.zeros((histogram,len(rawdata)))
-    
-    for i in range(len(rawdata)-1):
-        originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
-        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*originaldata[rawdata[i]:selecteddata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
-        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-        binnedwavelengths[:,i]= wavelengthstempavg
-        binnedintensities[:,i]=intensitiestemp
-     
-        
-    return binnedintensities,binnedwavelengths
-
-def histogramexcitationspectraforandback(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,originaldata,wavelengthrange,histogram):
-#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
-#originaldata is all the photons collected
 
 
-    threshlow=1/Freq/4
-    threshhigh=3/Freq/4
-    #Sort microtimes in two halves
-    Z = np.logical_and(threshlow<(originaldata*dtmacro),(originaldata*dtmacro)<= threshhigh)
-    tforward=originaldata[np.where(Z)]
-    tbackward=originaldata[np.where(np.logical_not(Z))]
-    
-    binnedintensitiesforward = np.zeros((histogram,len(rawdata)))
-    binnedwavelengthsforward = np.zeros((histogram,len(rawdata)))
-    
-    for i in range(len(rawdata)-1):
-        # originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
-        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(tforward*dtmacro*originaldata[rawdata[i]:rawdata[i+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
-        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-        binnedwavelengthsforward[:,i]= wavelengthstempavg
-        binnedintensitiesforward[:,i]=intensitiestemp
-     
-    binnedintensitiesbackward = np.zeros((histogram,len(rawdata)))
-    binnedwavelengthsbackward = np.zeros((histogram,len(rawdata)))
-    for i in range(len(rawdata)-1):
-        # originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
-        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(tbackward*dtmacro*originaldata[rawdata[i]:rawdata[i+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
-        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-        binnedwavelengthsbackward[:,i]= wavelengthstempavg
-        binnedintensitiesbackward[:,i]=intensitiestemp
-        
-    return binnedintensitiesforward,binnedwavelengthsforward,binnedwavelengthsbackward,binnedintensitiesbackward
 
 
-def histogramexcitationspectranew(Freq,Vpp,Voffset,tshift,calibcoeffs,dtmacro,rawdata,selecteddata,originaldata,wavelengthrange,histogram):
-#rawdata is the firstphoton of each cycle of interest.Original data is used to not cover more photons when the emission wavelength does not match.
-#selecteddata is the index of the ones interested in the firstphotons listed
-#originaldata is all the photons collected, the macrocycletime data
-        
-    binnedintensities = np.zeros((histogram,len(rawdata)))
-    binnedwavelengths = np.zeros((histogram,len(rawdata)))
-    
-    for i in range(len(rawdata)-1):
-        originaldataphotonlistindex = np.argmin(np.abs(selecteddata-rawdata[i]))
-        [intensitiestemp,wavelengthstemp] = np.histogram(InVoltagenew_c(dtmacro*originaldata[rawdata[i]:selecteddata[originaldataphotonlistindex+1]],Freq,Vpp,Voffset,tshift)*calibcoeffs[0]+calibcoeffs[1],histogram,range=wavelengthrange)
-        wavelengthstempavg = (wavelengthstemp[:-1]+0.5*(wavelengthstemp[1]-wavelengthstemp[0]))
-        binnedwavelengths[:,i]= wavelengthstempavg
-        binnedintensities[:,i]=intensitiestemp
-     
-        
-    return binnedintensities,binnedwavelengths
-
+#I changed some things in the g2 which make it works smoothly compared to the g2 that you implemented.
 def MakeG2(times0,times1,dtmicro,g2restime=64e-11*20,nrbins=200):
     i0=0
     i1=0
@@ -1069,7 +1011,7 @@ def MakeG2(times0,times1,dtmicro,g2restime=64e-11*20,nrbins=200):
     g2res = g2restime/dtmicro #transform g2restime [s] to g2res [microtime units]
     #blindB = blindB/tmicro
     #blindC = blindC/tmicro
-    g2tlist = np.arange(-g2res*dtmicro*(nrbins-0.5),g2res*dtmicro*nrbins,g2restime)*1e9
+    g2tlist = np.arange(-g2res*dtmicro*(nrbins-0.5),g2res*dtmicro*nrbins,g2restime)*1e9 #I thought this was the change that made it work for me
     # correlate det0 with det1 (positive time differences)
     for i0 in tqdm(range(len(times0))):
         t0 = times0[i0]
