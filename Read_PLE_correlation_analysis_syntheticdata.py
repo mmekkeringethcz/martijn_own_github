@@ -101,7 +101,7 @@ def randomsamp2(mean,amplitude,sigma,wavelengths):
         sample[:,i] = g(x,amplitude[i],sigma[i],mean[i])
         for j in range(len(x)):
             
-            samplenoise[j,i]=sample[j,i]+np.random.random(1)/100*3
+            samplenoise[j,i]=sample[j,i]+np.random.random(1)
 
     return x,sample,samplenoise
 
@@ -120,8 +120,8 @@ mean = np.copy(wiener)
 # 
 # mean[mean<605]=608
 # mean = np.ones(len(mean))*600 # fixed means
-# amplitude = np.abs(np.sum(Yfiltered,axis=0))/np.max(np.sum(Yfiltered,axis=0)) #uses the amplitude by summing the intensitieis for each time bin
-amplitude = np.ones(len(mean)) #fixed amplitudes
+amplitude = np.abs(np.sum(Yfiltered,axis=0))/np.max(np.sum(Yfiltered,axis=0)) #uses the amplitude by summing the intensitieis for each time bin
+amplitude=amplitude[:500]# amplitude = np.ones(len(mean)) #fixed amplitudes
 # amplitude = (np.copy(wiener[1])-centerstart)*100
 # sigma = np.zeros(len(mean))
 sigma = np.ones(len(mean))*1
@@ -200,7 +200,7 @@ plt.title('Correlation of fitted maxima postselected ('+str(timeselectedmin)+' -
 #%% pearson correltaion map
 
 
-taus =  [1,2,4]
+taus =  [0,1]
 # taus = np.arange(0,60,3)
 
 # taus = [1,2,3,4,5]
@@ -220,7 +220,7 @@ testwavelengths=test2[0][minwavspec1:maxwavspec1]
 #     plt.plot(testwavelengths,test2[2][:,i])
 timeend=len(mean) 
 # covnormcorr = rplm.pearsoncorrelation(test2[2][minwavspec1:maxwavspec1,:timeend],test2[2][minwavspec1:maxwavspec1,:timeend],testwavelengths,testwavelengths,taus=taus,plot=plot)
-covnormcorr = rplm.pearsoncorrelation(test2[2][minwavspec1:maxwavspec1,timeselectedmin:timeselectedmax],test2[2][minwavspec1:maxwavspec1,timeselectedmin:timeselectedmax],testwavelengths,testwavelengths,taus=taus,plot=plot)
+covnormcorr = rplm.pearsoncorrelation(test2[2][minwavspec1:maxwavspec1,:],test2[2][minwavspec1:maxwavspec1,:],testwavelengths,testwavelengths,taus=taus,plot=plot)
 # plt.figure()
 # plt.imshow(test2[2].T,extent=[np.min(testwavelengths),np.max(testwavelengths),len(mean),0],aspect='auto')
 # plt.gca().invert_yaxis()
@@ -228,20 +228,6 @@ covnormcorr = rplm.pearsoncorrelation(test2[2][minwavspec1:maxwavspec1,timeselec
 # plt.ylabel('time (bins)')
 # plt.title('Simulated data')
 
-for i in range(len(taus)):
-    tau=taus[i]
-    # if tau==0:
-    vmin=0
-    vmax0corr=0.2
-    # print(vmax0corr)
-    plt.figure()
-    # plt.imshow(emissioncorrelation[i],extent=[test2[0][minwavspec1],test2[0][maxwavspec1],test2[0][maxwavspec1],test2[0][minwavspec1]],vmin=vmin,vmax=vmax0corr)
-    plt.imshow(emissioncorrelation[i],extent=[np.min(wavelengths),np.max(wavelengths),np.max(wavelengths),np.min(wavelengths)],vmin=vmin,vmax=vmax0corr)
-    plt.colorbar()
-    plt.gca().invert_yaxis()
-    plt.xlabel('Wavelength (nm)')
-    plt.ylabel('Wavelength (nm)')
-    plt.title('Correlation map. tau = '+str(taus[i]))
 
     # if savefig=True: #attempt to save figures on the fly
     # plt.savefig('E:/Martijn/ETH/results/20200310_PM111_specdiffusion/QD2/Correlation_map_tau'+str(tau)+'_excitation',dpi=800) 
@@ -280,17 +266,18 @@ if Debugmode==True: # some impression of the data plotted without the plot= stuf
 #based on normalization map and the deviation thereinnn
 
 # normalizationdata = normalizationdata[0]
-guessorigin=600
-origin,rest = rplm.find_originsyntheticdata(normalizationdata[0],guessorigin,testwavelengths,prominence=10,width=1)
+guessorigin=598
+origin,rest = rplm.find_originsyntheticdata(normalizationdata[0],guessorigin,testwavelengths,prominence=10,width=5)
 
-# origin= 150
+# origin= 300
 print(testwavelengths[origin])
-datapoints = 80
+datapoints = 200
 #%% fourier transform on synthetic data
-correlationpolar = cartesiantopolarcorrelation(correlationdata,origin,datapoints)
+Debugmode=True
+correlationpolar = rplm.cartesiantopolarcorrelation(correlationdata,origin,datapoints)
 correlationpolardata,correlationthetas= correlationpolar[1],correlationpolar[2]
 # correlationpolarsum=np.sum(correlationpolar[1],axis=1)
-fourierdatacorrelation = fouriertransform(correlationpolardata,correlationthetas)
+fourierdatacorrelation = rplm.fouriertransform(correlationpolardata,correlationthetas)
 # fourierdatacorrelation = fouriertransform(correlationpolarsum,correlationthetas)
 fourierdata =fourierdatacorrelation
 fourierthetashift = fourierdata[2] #is shifted to make the plot look cleaner
@@ -312,11 +299,12 @@ if Debugmode==True:
 #%%selectedradii = [5,20,40,60] # select a particular radius
 selectedradii = [5,10,20,30]
 # selectedradii= np.arange(0,50)
+Debugmode=True
 # selectedradii = [40] # select a particular radius
 # fourierdataradius =
 if Debugmode==True: #plots the individual fourier transforms
-    # for j in range(len(fourierdata[0])):
-    for j in range(0,1):
+    for j in range(len(fourierdata[0])):
+    # for j in range(0,1):
     # for j in range(0,101,20):
         tau = taus[j]
         plt.figure()
@@ -334,6 +322,7 @@ if Debugmode==True: #plots the individual fourier transforms
             plt.xlabel('n-fold symmetry')
             plt.ylabel('Frequency Domain (Spectrum) Magnitude')
             plt.title('Fourier Transform real. Tau = ' + str(tau)+' Wav. Org. = ' +str(testwavelengths[origin])[:5]+' nm')
+            plt.title('Fourier Transform real component')
             plt.xlim(-6,6)
             plt.legend()
     # 
@@ -356,12 +345,13 @@ if Debugmode==True: #plots the individual fourier transforms
             # plt.ylim(0,20)
             plt.xlabel('n-fold symmetry')
             plt.ylabel('Frequency Domain (Spectrum) Magnitude')
-            plt.title('Fourier Transform imag. Tau = ' + str(tau) +' Wav. Org. = ' +str(testwavelengths[origin])[:5]+' nm')
+            plt.title('Fourier Transform imaginairy component. Tau = ' + str(tau) +' Wav. Org. = ' +str(testwavelengths[origin])[:5]+' nm')
+            plt.title('Fourier Transform imaginairy component')
             plt.xlim(-6,6)
             plt.legend(loc=1)
 
 #here you can see how the amplitude of a particular n-fold cycle displays vs tau. Note that when you have a single tau defined you will get an empty plot (because there is only one point)
-
+Debugmode=False
 ftimag = rplm.Fouriercomponentvstau(fourierdataimag, fourierthetashift, selectedradii)
 ftreal = rplm.Fouriercomponentvstau(fourierdatareal, fourierthetashift, selectedradii)
 

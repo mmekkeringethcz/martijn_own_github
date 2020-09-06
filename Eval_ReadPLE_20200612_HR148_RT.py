@@ -261,7 +261,7 @@ microtimesin=data[2]
 #macrotimescyclein=macrotimescycleblue
 binwidth=0.01
 macrolimits = rpl.HistPhotons(macrotimesin*dtmacro,binwidth,Texp)
-macrolimits=macrotimesin
+# macrolimits=macrotimesin
 limits=macrolimits
 taulist=np.zeros(len(limits)-1)
 #wavelbins=150
@@ -463,11 +463,21 @@ fittrion=rpl.GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotboo
 # fittrion=GetLifetime(microtimes_trion,dtmicro,dtmacro,5e-9,tstart=-1,plotbool=True,ybg=bins_trion*40*binwidth/np.max(microtimesblue),method='ML_c')
 
 # fitoff=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,10e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_trion/(Texp/binwidth),method='ML_c')
-fitmid=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_mid/(Texp/binwidth),method='ML_c')
+fitmid=rpl.GetLifetime(microtimes_off,dtmicro,dtmacro,200e-9,tstart=-1,plotbool=True,ybg=lifetime[2]*bins_mid/(Texp/binwidth),expterms=2,method='ML_c')
 
 print('Rad lifetime ratio:'+str(fittrion[1]/bins_trion/(fitex[1]/bins_ex)))
 #plt.xlim([0,220])
 # plt.legend(['High cps','High cps fit','Mid cps','Mid cps fit','Low cps','Low cps fit'])
+
+#%% no fits
+plt.figure()
+plt.semilogy(fitex[4],fitex[5],'.',label='Bright')
+plt.semilogy(fittrion[4],fittrion[5],'.',label='Gray')
+plt.semilogy(fitmid[4],fitmid[5],'.',label='Dark')
+plt.legend()
+plt.title('Decay histograms')
+plt.xlabel('time (ns)')
+plt.ylabel('counts (a.u.)')
 #%% emission spectrum when in trion state
 indextrion = np.argwhere(timetrion==1).ravel()
 indexexciton = np.argwhere(timeexciton==1).ravel()
